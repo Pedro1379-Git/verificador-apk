@@ -1,0 +1,40 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Verificador</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f3f3f3;color:#111}
+header{background:#111;color:#fff;padding:14px 16px;font-weight:700}
+main{padding:16px;max-width:520px;margin:auto}
+label{display:block;font-weight:600;margin:14px 0 6px}
+input{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:2px solid #111;border-radius:8px}
+button{width:100%;font-size:17px;font-weight:700;padding:14px;border:0;border-radius:8px;margin-top:12px;background:#111;color:#fff}
+button.s{background:#fff;color:#111;border:2px solid #111}
+#r{margin-top:14px;padding:12px;border-radius:8px;display:none;font-size:15px}
+.ok{background:#e0f2e0}.er{background:#fde0e0}small{color:#555;display:block;margin-top:6px}
+</style></head><body>
+<header>Verificador de embarques</header>
+<main>
+<label for="s">Dirección del servidor</label>
+<input id="s" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="192.168.1.50/verificador/public">
+<small>IP de la laptop con XAMPP y la carpeta donde está <b>api.php</b>. Ejemplo: <b>192.168.1.50/verificador/public</b></small>
+<button id="p">Probar conexión</button>
+<button id="g" class="s">Guardar y abrir</button>
+<div id="r"></div>
+</main>
+<script src="config.js"></script><script src="apk-shim.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)},s=$('s'),r=$('r');
+function ls(){try{return localStorage.getItem('servidor')||''}catch(e){return ''}}
+var cfg=/[?&]cfg=1/.test(location.search),ini=ls()||(window.APK_CONFIG||{}).SERVIDOR_POR_DEFECTO||'';
+if(!cfg&&ini){location.replace('escaneo.html')}
+s.value=ini;
+function show(t,ok){r.style.display='block';r.className=ok?'ok':'er';r.textContent=t}
+function probar(){var b=APK.norm(s.value);if(!b){show('Escribe la dirección del servidor.',false);return Promise.resolve(false)}
+ show('Probando '+b+' …',true);
+ var c=new AbortController(),t=setTimeout(function(){c.abort()},6000);
+ return fetch(b+'/api.php?a=status',{signal:c.signal}).then(function(x){clearTimeout(t);return x.json()})
+  .then(function(j){show('Conexión correcta ✔',true);return true})
+  .catch(function(e){clearTimeout(t);show('No se pudo conectar. Revisa que la laptop y el teléfono estén en la misma red, que XAMPP (Apache) esté encendido y la dirección sea correcta.',false);return false})}
+$('p').onclick=probar;
+$('g').onclick=function(){probar().then(function(ok){if(!ok&&!confirm('No hubo conexión. ¿Guardar de todos modos?'))return;
+ try{localStorage.setItem('servidor',APK.norm(s.value))}catch(e){}location.href='escaneo.html'})};
+</script></body></html>

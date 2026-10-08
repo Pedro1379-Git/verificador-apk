@@ -1,0 +1,7 @@
+{
+  "appId": "mx.yagm.verificador",
+  "appName": "Verificador",
+  "webDir": "www",
+  "server": { "androidScheme": "https", "cleartext": true },
+  "android": { "allowMixedContent": true }
+}
