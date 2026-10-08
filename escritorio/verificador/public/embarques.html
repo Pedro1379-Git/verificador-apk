@@ -2551,12 +2551,12 @@ async function abrir(id){
   const th=P.map(p=>`<th>${esc(p.sufijo)}<br><small>${esc(p.serie)}</small></th>`).join('');
   const body=cs.map(c=>{const l=inf[c];return `<tr><td class="l"><b>${esc(c)}</b>${l.es_rack?' <small>RACKS</small>':''}</td><td class="l">${esc(l.parte)}</td><td>${l.pzas||''}</td>`+
     P.map(p=>{const x=cel[p.orden+'|'+c];return x?`<td class="${x.es_rack?'rk':''}"><b>${x.esperado}</b>${x.kan!=null&&x.kan!==x.esperado?` <span class="warn" title="KAN: ${x.kan}">⚠${x.kan}</span>`:''}</td>`:'<td class="na"></td>'}).join('')+
-    `<td><b>${e.lineas.filter(z=>z.codigo===c).reduce((a,z)=>a+z.esperado,0)}</b></td></tr>`}).join('');
+    `<td><b>${e.lineas.filter(z=>z.codigo===c).reduce((a,z)=>a+n0(z.esperado),0)}</b></td></tr>`}).join('');
   const sel=Object.keys(ETQ).map(k=>`<option value="${k}"${k===e.estatus?' selected':''}>${ETQ[k]}</option>`).join('');
   const q=encodeURIComponent(e.id);
   $('det').innerHTML=`<div class="dh"><span class="rt">${esc(e.ruta)}</span><span class="dk">${esc(e.dock)}</span><span class="st ${e.estatus}">${ETQ[e.estatus]}</span></div>
     <p class="hint">Salida ${fd(e.salida)} · ${e.pallets} pallets · ${e.cajas} cajas · ${e.racks} racks<br>ID del QR: <b>${esc(e.id)}</b></p>
-    <div class="mx"><table><thead><tr><th>Código</th><th>N.º de parte</th><th>Pzs</th>${th}<th>Total</th></tr></thead><tbody>${body}</tbody></table></div>
+    <div class="mx"><table><thead><tr><th>Código</th><th>N.º de parte</th><th>Pzas</th>${th}<th>Total</th></tr></thead><tbody>${body}</tbody></table></div>
     <div class="acts"><button id="bUno">🖨 Imprimir Dock Audit</button><button id="bPdf" class="sec">⬇ PDF auditado</button></div>
     <details><summary>Exportar CSV y cambiar estatus</summary><div class="acts">
       <a class="btn" href="api.php?a=exportar&tipo=resumen&id=${q}">Resumen por pallet</a><a class="btn" href="api.php?a=exportar&tipo=lineas&id=${q}">Detalle por parte</a><a class="btn" href="api.php?a=exportar&tipo=escaneos&id=${q}">Bitácora de escaneos</a><a class="btn" href="api.php?a=exportar&tipo=saltos&id=${q}">Saltos y razones</a></div>
@@ -2577,16 +2577,18 @@ async function abrir(id){
 function qrSvg(txt){const q=qrcode(0,'M');q.addData(txt);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true})}
 function hojaHTML(e){
   const P=e.pallets_det,L=e.lineas,N=P.length;
+  L.forEach(l=>{l.esperado=Number(l.esperado)||0;l.pzas=Number(l.pzas)||0;l.es_rack=Number(l.es_rack)||0});P.forEach(p=>p.skids=Number(p.skids)||0);
   const cs=[...new Set(L.map(l=>l.codigo))].sort(),inf={},cel={};
   L.forEach(l=>{inf[l.codigo]=l;cel[l.orden+'|'+l.codigo]=l});
   const csC=cs.filter(c=>!inf[c].es_rack),csR=cs.filter(c=>inf[c].es_rack);
-  const sum=(cod,o)=>cod.reduce((a,c)=>a+((cel[o+'|'+c]||{}).esperado||0),0);
-  const totC=csC.reduce((a,c)=>a+L.filter(l=>l.codigo===c).reduce((x,y)=>x+y.esperado,0),0),totR=csR.reduce((a,c)=>a+L.filter(l=>l.codigo===c).reduce((x,y)=>x+y.esperado,0),0);
+  const n0=v=>Number(v)||0;
+  const sum=(cod,o)=>cod.reduce((a,c)=>a+n0((cel[o+'|'+c]||{}).esperado),0);
+  const totC=csC.reduce((a,c)=>a+L.filter(l=>l.codigo===c).reduce((x,y)=>x+n0(y.esperado),0),0),totR=csR.reduce((a,c)=>a+L.filter(l=>l.codigo===c).reduce((x,y)=>x+n0(y.esperado),0),0);
   // grupos por serie (8 dígitos)
   const grp=[];P.forEach(p=>{const g=grp[grp.length-1];if(g&&g.s===p.serie)g.n++;else grp.push({s:p.serie,n:1})});
   const first=new Set();let k=0;grp.forEach(g=>{first.add(k);k+=g.n});
   const sp=i=>first.has(i)&&i>0?' sep':'';
-  const wC=[15,25,11],wT=[13,12,12],pw=(265-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
+  const wC=[15,25,13],wT=[14,14,17],pw=(265-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
   const fecha=e.salida.slice(8,10)+'/'+e.salida.slice(5,7)+'/'+e.salida.slice(0,4),hh=e.salida.slice(11,16);
   const big=N>12?12:N>8?14:N>6?16:20,sz=N>12?'8pt':N>8?'9pt':'10pt';
   const qty=[totC?`${totC} CAJAS`:'',totR?`${totR} RACKS`:''].filter(Boolean);
@@ -2595,29 +2597,30 @@ function hojaHTML(e){
    <div class="k"><span class="l" style="color:#d9d9d9">SALIDA &nbsp;${fecha}</span><span class="b" style="font-size:38pt">${hh}</span></div>
    <div class="g"><span class="l">PALLETS</span><span class="b" style="font-size:38pt">${N}</span></div>
    <div class="g"><span class="l">CANTIDAD ESPERADA</span>${qty.map(x=>`<span class="b" style="font-size:${qty.length>1?15:20}pt">${x}</span>`).join('')}</div>
-   <div class="g" style="font-size:8pt;font-weight:700"><span>FECHA ___/___/______</span><span style="margin-top:2mm">TURNO ______</span></div>
+   <div class="g" style="font-size:8pt;font-weight:700"><span>FECHA ____/____/________</span><span style="margin-top:2mm">TURNO ______</span></div>
    <div class="qr">${qrSvg('DA'+e.id)}</div></div>`;
   const colg=`<colgroup>${[...wC,...Array(N).fill(pw),...wT].map(w=>`<col style="width:${w}mm">`).join('')}</colgroup>`;
-  const r0=`<tr><th colspan="3" style="font-size:7pt">SERIE DE ORDEN (8 dígitos)</th>${grp.map((g,i)=>`<th class="s sep" colspan="${g.n}" style="font-size:9pt">${esc(g.s)}</th>`).join('')}<th colspan="3" style="font-size:7pt">TOTAL ESPERADO</th></tr>`;
-  const r1=`<tr><th colspan="3" style="font-size:7pt">PALLET = últimos 2 dígitos de la orden</th>${P.map((p,i)=>`<th class="${sp(i).trim()}" style="font-size:${big}pt">${esc(p.sufijo)}</th>`).join('')}<th colspan="3" style="font-size:7pt">(${totC&&totR?'cajas / racks':totR?'racks':'cajas'})</th></tr>`;
-  const r2=`<tr><th class="l" colspan="3">Cód. paletizado · skids del manifiesto</th>${P.map((p,i)=>`<th class="l${sp(i)}">${esc(p.palcode)}<br><span style="font-weight:400">${p.skids>1?p.skids+' skids':'1 skid'}</span></th>`).join('')}<th class="l" colspan="3"></th></tr>`;
-  const r3=`<tr><th class="l">Código</th><th class="l">N.º de parte</th><th class="l">Pzs/caja</th>${P.map((p,i)=>`<th style="background:#7a7a7a;font-size:6pt;font-weight:400" class="${sp(i).trim()}">cantidad</th>`).join('')}<th class="l">Esper.</th><th class="l">Carg.</th><th class="l">Dif.</th></tr>`;
+  const r0=`<tr><th colspan="3" style="font-size:7pt">Serie de la orden (8 dígitos)</th>${grp.map((g,i)=>`<th class="s sep" colspan="${g.n}" style="font-size:9pt">${esc(g.s)}</th>`).join('')}<th colspan="3" style="font-size:7pt">TOTAL ESPERADO</th></tr>`;
+  const r1=`<tr><th colspan="3" style="font-size:7pt">Pallet = últimos 2 dígitos de la orden</th>${P.map((p,i)=>`<th class="${sp(i).trim()}" style="font-size:${big}pt">${esc(p.sufijo)}</th>`).join('')}<th colspan="3" style="font-size:7pt">(${totC&&totR?'cajas / racks':totR?'racks':'cajas'})</th></tr>`;
+  const rm=`<tr><th class="l" colspan="3">MROS del manifiesto</th>${P.map((p,i)=>`<th class="l${sp(i)}" style="font-size:${N>8?5:6.5}pt;word-break:break-all">${esc(p.mros||'')}</th>`).join('')}<th class="l" colspan="3"></th></tr>`;
+  const r2=`<tr><th class="l" colspan="3">Cód. de paletizado · skids del manifiesto</th>${P.map((p,i)=>`<th class="l${sp(i)}">${esc(p.palcode)}<br><span style="font-weight:400">${p.skids>1?p.skids+' skids':'1 skid'}</span></th>`).join('')}<th class="l" colspan="3"></th></tr>`;
+  const r3=`<tr><th class="l">Código</th><th class="l">N.º de parte</th><th class="l">Pzas/caja</th>${P.map((p,i)=>`<th style="background:#7a7a7a;font-size:6pt;font-weight:400" class="${sp(i).trim()}">Cantidad</th>`).join('')}<th class="l">Esperado</th><th class="l">Cargado</th><th class="l">Diferencia</th></tr>`;
   const rowC=c=>{const l=inf[c],R=l.es_rack;
-    return `<tr style="height:${N>12||cs.length>8?7.2:8.8}mm"><td class="c">${esc(c)}${R?'<br><span class="tag">RACKS</span>':''}</td><td class="p">${esc(l.parte)}</td><td class="p">${l.pzas||''}${R?'<br><span style="font-size:5.5pt">pzs/rack</span>':''}</td>`+
+    return `<tr style="height:${N>12||cs.length>8?7.2:8.8}mm"><td class="c">${esc(c)}${R?'<br><span class="tag">RACKS</span>':''}</td><td class="p">${esc(l.parte)}</td><td class="p">${l.pzas||''}${R?'<br><span style="font-size:5.5pt">pzas/rack</span>':''}</td>`+
       P.map((p,i)=>{const x=cel[p.orden+'|'+c];return x?`<td class="v${R?' rk':''}${sp(i)}" style="font-size:${sz==='8pt'?'12pt':'15pt'}">${x.esperado}</td>`:`<td class="na${sp(i)}"></td>`}).join('')+
-      `<td class="t" style="font-size:12pt">${L.filter(z=>z.codigo===c).reduce((a,z)=>a+z.esperado,0)}</td><td></td><td></td></tr>`};
+      `<td class="t" style="font-size:12pt">${L.filter(z=>z.codigo===c).reduce((a,z)=>a+n0(z.esperado),0)}</td><td></td><td></td></tr>`};
   const tot=(cod,nom,uni,dark,t)=>{const hr=nom==='RACKS'?'lr':'lb';
     const e1=`<tr style="height:7mm"><td class="${hr}" colspan="3">${nom} ESPERADOS <small>total del pallet</small></td>${P.map((p,i)=>{const v=sum(cod,p.orden);return v?`<td class="t${sp(i)}" style="font-size:12pt;${nom==='RACKS'?'background:#e6e6e6':''}">${v}</td>`:`<td class="na${sp(i)}"></td>`}).join('')}<td class="t" colspan="3" style="font-size:13pt;${nom==='RACKS'?'background:#e6e6e6':''}">${t}</td></tr>`;
-    const e2=`<tr style="height:7mm"><td class="${hr}" colspan="3">${nom} CONTADOS <small>escribir el número real</small></td>${P.map((p,i)=>sum(cod,p.orden)?`<td class="${sp(i).trim()}"></td>`:`<td class="na${sp(i)}"></td>`).join('')}<td colspan="3"></td></tr>`;
+    const e2=`<tr style="height:7mm"><td class="${hr}" colspan="3">${nom} CONTADOS <small>anota la cantidad real</small></td>${P.map((p,i)=>sum(cod,p.orden)?`<td class="${sp(i).trim()}"></td>`:`<td class="na${sp(i)}"></td>`).join('')}<td colspan="3"></td></tr>`;
     return e1+e2};
-  const inc=`<tr style="height:7.5mm"><td class="lb" colspan="3">INCIDENCIA N.º <small>solo si hay diferencia; se describe abajo</small></td>${P.map((p,i)=>`<td class="${sp(i).trim()}"></td>`).join('')}<td colspan="3"></td></tr>`;
-  const tabla=`<table class="m">${colg}<thead>${r0}${r1}${r2}${r3}</thead><tbody>${cs.map(rowC).join('')}${csC.length?tot(csC,'CAJAS','',0,totC):''}${csR.length?tot(csR,'RACKS','',1,totR):''}${inc}</tbody></table>`;
-  const nota='Cada columna es un pallet = una orden (últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Casilla achurada = esa parte no va en ese pallet. '+(csR.length?'Fondo gris y etiqueta RACKS = esas partes se envían en racks, no en cajas. ':'')+'Si lo contado no coincide con lo esperado, anota el número de incidencia en el pallet y descríbela en la tabla.';
+  const inc=`<tr style="height:7.5mm"><td class="lb" colspan="3">INCIDENCIA N.º <small>solo si hay diferencia</small></td>${P.map((p,i)=>`<td class="${sp(i).trim()}"></td>`).join('')}<td colspan="3"></td></tr>`;
+  const tabla=`<table class="m">${colg}<thead>${r0}${r1}${rm}${r2}${r3}</thead><tbody>${cs.map(rowC).join('')}${csC.length?tot(csC,'CAJAS','',0,totC):''}${csR.length?tot(csR,'RACKS','',1,totR):''}${inc}</tbody></table>`;
+  const nota='Cada columna es un pallet y corresponde a una orden (se identifica por sus últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Una casilla rayada indica que esa parte no va en ese pallet. '+(csR.length?'El fondo gris y la etiqueta RACKS indican que esas partes se envían en racks, no en cajas. ':'')+'Si lo contado no coincide con lo esperado, anota el número de incidencia en el pallet y descríbela en la tabla de abajo.';
   const ctl=`<table><tr><th>CONTROLES DE RUTA</th></tr>
    <tr><td class="h">Pallets físicos contados: ______ de <b>${N}</b> &nbsp; ${totC?`Cajas contadas: ______ de ${totC} &nbsp; `:''}${totR?`Racks contados: ______ de ${totR}`:''}</td></tr>
-   <tr><td class="h">Ruta y dock = hoja de embarque y destino del camión ☐ OK &nbsp; <b>Transporte / placas:</b> ____________</td></tr>
-   <tr><td class="h">Condición: ☐ Flejado y sellos firmes &nbsp; ☐ Manifiesto visible por 2 lados &nbsp; ☐ Sin material de otra ruta</td></tr></table>`;
-  const com=`<table><tr><th style="width:8mm">N.º</th><th style="width:38mm">Pallet (orden) / código</th><th>Qué se detectó</th><th style="width:48mm">Acción tomada y quién</th></tr>${[1,2,3].map(n=>`<tr><td class="h" style="text-align:center">${n}</td><td></td><td></td><td></td></tr>`).join('')}</table>`;
+   <tr><td class="h">Ruta y dock coinciden con la hoja de embarque y el destino del camión ☐ Sí &nbsp; <b>Transporte / placas:</b> ____________</td></tr>
+   <tr><td class="h">Condición: ☐ Flejado y sellos firmes &nbsp; ☐ Manifiesto visible por ambos lados &nbsp; ☐ Sin material de otra ruta</td></tr></table>`;
+  const com=`<table><tr><th style="width:8mm">N.º</th><th style="width:38mm">Pallet (orden) / código</th><th>Qué se detectó</th><th style="width:48mm">Acción tomada y responsable</th></tr>${[1,2,3].map(n=>`<tr><td class="h" style="text-align:center">${n}</td><td></td><td></td><td></td></tr>`).join('')}</table>`;
   const sg=`<div class="sg"><div>Preparador (nombre y firma)</div><div>Verificador (nombre y firma)</div><div>Líder (nombre y firma)</div></div>`;
   return `<section class="hoja"><div class="in"><div style="font-size:9pt;font-weight:800;margin-bottom:.8mm">DOCK AUDIT · Preparación de embarque <span style="float:right;font-weight:400;font-size:6.5pt;color:#404040">${esc(e.id)}</span></div>${bn}${tabla}<div class="nota">${nota}</div><div class="low"><div>${ctl}</div><div></div><div>${com}</div></div>${sg}</div></section>`}
 function ajustar(){document.querySelectorAll('#imp .hoja').forEach(h=>{const i=h.firstElementChild;i.style.transform='';const k=Math.min(1,h.clientHeight/i.scrollHeight);if(k<1){i.style.transform=`scale(${k})`;}})}

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Escaneo de embarque</title>
-<link rel="stylesheet" href="estilo.css?v=20261008"><meta name="theme-color" content="#0A3FA8">
+<link rel="stylesheet" href="estilo.css?v=20261009"><meta name="theme-color" content="#0A3FA8">
 <style>
 main{max-width:720px;margin:0 auto;padding:10px 10px calc(14px + env(safe-area-inset-bottom))}
 /* zona fija superior: campo de escaneo + aviso de resultado */
@@ -55,7 +55,7 @@ body[data-g=ok]::after{border:6px solid var(--ok)}body[data-g=bad]::after{border
 .pl .det{padding:0 0 8px 52px;font-size:14px;color:var(--mut)}.pl .det div{display:flex;justify-content:space-between}.pl .rz{display:block;color:var(--wa);font-size:13px;margin-top:2px}
 #rec{list-style:none;margin:0;padding:0;font-size:14px}#rec li{padding:5px 0;border-bottom:1px solid var(--ln)}#rec li.mal{color:var(--er);font-weight:600}#rec li.ANULADA{color:var(--mut);text-decoration:line-through}
 .rz{display:grid;gap:8px;margin:10px 0}.rz label{display:flex;gap:10px;align-items:center;border:2px solid var(--ln);border-radius:10px;padding:13px;font-weight:600;min-height:48px}.rz input{width:20px;height:20px}.rz label:has(input:checked){border-color:var(--az2);background:var(--azl)}
-</style><script src="config.js"></script><script src="dockpdf.js?v=20261008"></script><script src="apk-shim.js"></script></head><body>
+</style><script src="config.js"></script><script src="dockpdf.js?v=20261009"></script><script src="apk-shim.js"></script></head><body>
 <div id="top"><header class="nav"><b>Verificador</b><a class="on" href="escaneo.html">Escaneo</a><a href="embarques.html">Embarques</a><span class="sp"></span><span></span></header>
 <div class="card" id="vScan">
   <div class="row"><input type="text" id="scan" autocomplete="off" inputmode="none" placeholder="Escanea con pistola o pega el QR…"><button id="bCam" class="sec">📷</button></div>
@@ -10274,7 +10274,7 @@ function mostrarFin(){const e=ST.embarque,P=ST.pallets;beep('ok');
 
 // ---- lectura de códigos ----
 function parseLabel(t){const m=String(t).trim().match(/^(\S+?)\s{2,}(\d+)\s+(\S+)\s+(\d+)$/);if(!m)return null;
-  const p=m[1].match(/[0-9A-Z]{5}-[0-9A-Z]{5}-\d{2}/);return {parte:p?p[0]:m[1].slice(-14),piezas:+m[2],qr:String(t).trim().replace(/\s+/g,' ')}}
+  const p=m[1].match(/[0-9A-Z]{5}-[0-9A-Z]{5}-\d{2}/);return {parte:p?p[0]:m[1],piezas:+m[2],qr:String(t).trim().replace(/\s+/g,' ')}}
 function parseManifest(t){const m=String(t).match(/20\d{8}/);return m?{orden:m[0]}:null}
 async function onScan(t){
   t=String(t).trim();if(!t||busy)return;busy=true;
