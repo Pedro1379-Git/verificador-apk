@@ -1,5 +1,8 @@
 name: Compilar APK
-on: [workflow_dispatch, push]
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore: ['escritorio/**','manual/**','fuentes/**','README.md','LEEME_APK.md']
 jobs:
   build:
     runs-on: ubuntu-latest
