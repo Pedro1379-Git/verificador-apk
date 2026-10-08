@@ -2,12 +2,15 @@
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Escaneo de embarque</title>
 <link rel="stylesheet" href="estilo.css"><meta name="theme-color" content="#0A3FA8">
 <style>
-main{max-width:720px;margin:0 auto;padding:10px}
+main{max-width:720px;margin:0 auto;padding:10px 10px calc(14px + env(safe-area-inset-bottom))}
 /* zona fija superior: campo de escaneo + aviso de resultado */
-#vScan{position:sticky;top:0;z-index:30;background:var(--az);border:0;border-radius:0 0 16px 16px;margin:-10px -10px 10px;padding:10px 12px 12px;box-shadow:0 4px 14px rgba(10,63,168,.3)}
+#top{position:fixed;top:0;left:0;right:0;z-index:30;padding-top:env(safe-area-inset-top);background:var(--az);box-shadow:0 4px 14px rgba(10,63,168,.3)}
+#top .nav{min-height:38px;gap:16px}#top .nav a{padding:9px 2px;font-size:13px}#top .nav b{font-size:15px}
+#vScan{background:var(--az);border:0;border-radius:0;margin:0;padding:6px 12px 12px;max-width:720px;margin:0 auto}
+#cfg{width:52px;height:52px;flex:none;padding:0;font-size:22px;background:var(--az2);border:2px solid #ffffff80;color:#fff;border-radius:10px;display:none;align-items:center;justify-content:center;text-decoration:none}
 #vScan .row{flex-wrap:nowrap}#scan{flex:1;min-width:0;height:52px;font:17px Consolas,monospace;border-color:#fff}
 #bCam{width:52px;height:52px;padding:0;font-size:22px;background:var(--az2);border:2px solid #ffffff80;color:#fff}
-#msg{margin-top:10px;min-height:64px;border-radius:12px;display:flex;align-items:center;gap:12px;padding:8px 14px;font-weight:700;font-size:17px;line-height:1.2;color:#fff;background:#ffffff1f;border:1.5px dashed #ffffff80}
+#msg{margin-top:8px;min-height:64px;border-radius:12px;display:flex;align-items:center;gap:12px;padding:8px 14px;font-weight:700;font-size:17px;line-height:1.2;color:#fff;background:#ffffff1f;border:1.5px dashed #ffffff80}
 #msg .ic{font-style:normal;font-size:30px;font-weight:800;width:34px;text-align:center;flex:none}#msg .tx{flex:1}
 #msg.idle{color:#fff;font-weight:600;font-size:15px}
 #msg.ok{background:var(--ok);border:0}#msg.bad{background:var(--er);border:0}#msg.warn{background:var(--wa);border:0}#msg.dock{background:var(--mo);border:0}#msg.man{background:var(--man);border:0}
@@ -15,7 +18,7 @@ main{max-width:720px;margin:0 auto;padding:10px}
 body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:60;border:0 solid transparent;transition:border-width .12s}
 body[data-g=ok]::after{border:6px solid var(--ok)}body[data-g=bad]::after{border:6px solid var(--er)}
 /* cámara con marco de lectura */
-#camBox .vw{position:relative;margin-top:10px;border-radius:12px;overflow:hidden;background:#000}#camBox video{display:block;width:100%;max-height:34vh;object-fit:cover}
+#camBox .vw{position:relative;margin-top:10px;border-radius:12px;overflow:hidden;background:#000}#camBox video{display:block;width:100%;max-height:22vh;object-fit:cover}
 #camBox .fr{position:absolute;inset:14% 18%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 999px #0007}
 #camBox .sl{position:absolute;left:18%;right:18%;top:50%;height:3px;background:var(--az2);box-shadow:0 0 12px var(--az2);animation:bar 1.6s ease-in-out infinite alternate}
 @keyframes bar{from{top:20%}to{top:78%}}
@@ -53,14 +56,14 @@ body[data-g=ok]::after{border:6px solid var(--ok)}body[data-g=bad]::after{border
 #rec{list-style:none;margin:0;padding:0;font-size:14px}#rec li{padding:5px 0;border-bottom:1px solid var(--ln)}#rec li.mal{color:var(--er);font-weight:600}#rec li.ANULADA{color:var(--mut);text-decoration:line-through}
 .rz{display:grid;gap:8px;margin:10px 0}.rz label{display:flex;gap:10px;align-items:center;border:2px solid var(--ln);border-radius:10px;padding:13px;font-weight:600;min-height:48px}.rz input{width:20px;height:20px}.rz label:has(input:checked){border-color:var(--az2);background:var(--azl)}
 </style><script src="config.js"></script><script src="dockpdf.js"></script><script src="apk-shim.js"></script></head><body>
-<header class="nav"><b>Verificador</b><a class="on" href="escaneo.html">Escaneo</a><a href="embarques.html">Embarques</a><span class="sp"></span><span></span></header>
-<main>
+<div id="top"><header class="nav"><b>Verificador</b><a class="on" href="escaneo.html">Escaneo</a><a href="embarques.html">Embarques</a><span class="sp"></span><span></span></header>
 <div class="card" id="vScan">
   <div class="row"><input type="text" id="scan" autocomplete="off" inputmode="none" placeholder="Escanea con pistola o pega el QR…"><button id="bCam" class="sec">📷</button></div>
   <div id="camBox" hidden><div class="vw"><video id="vid" playsinline muted></video><div class="fr"></div><div class="sl"></div></div><button class="sec" id="bStop">Cerrar cámara</button></div>
   <div id="msg" class="idle"><i class="ic">▮▯</i><span class="tx">Escanea el QR del Dock Audit</span></div>
   <p class="hint" id="hint"></p>
-</div>
+</div></div><div id="topSp"></div>
+<main>
 <div id="vHead" class="card" hidden></div>
 <div id="vProg" class="card" hidden></div>
 
@@ -10187,7 +10190,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 /******/ ])["default"];
 });</script>
 <script>
-const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+(function(){const f=()=>{const t=$('top'),s=$('topSp');if(t&&s)s.style.height=t.offsetHeight+'px'};addEventListener('load',f);addEventListener('resize',f);if(window.ResizeObserver)new ResizeObserver(f).observe($('top'));f()})();const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let ST=null,busy=false;
 let AC=null;
 function beep(k){if(k==='ask'){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();[0,.22].forEach((dl,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=i?990:660;o.connect(g);g.connect(AC.destination);g.gain.value=.18;o.start(AC.currentTime+dl);o.stop(AC.currentTime+dl+.16)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([80,60,80])}catch(e){}return}
@@ -10241,7 +10245,7 @@ function render(){
   $('bSkip').textContent=ab?'Saltar este pallet…':'Saltar pallet '+(sig?sig.sufijo:'')+'…';
   $('vRec').hidden=!ST.recientes.length;
   $('rec').innerHTML=ST.recientes.map(r=>`<li class="${r.resultado==='OK'||r.resultado==='ANULADA'?r.resultado:'mal'}">${r.hora} · ${esc(r.orden.slice(8))} · ${esc(r.parte||'?')} · ${r.resultado}${r.aviso?' ⚠':''}</li>`).join('');
-  const c=document.querySelector('.chip.en_proceso,.chip.siguiente');if(c)c.scrollIntoView({inline:'center',block:'nearest'});
+  const c=document.querySelector('.chip.en_proceso,.chip.siguiente');if(c&&c.parentNode.scrollTo)c.parentNode.scrollTo({left:c.offsetLeft-c.parentNode.clientWidth/2+c.clientWidth/2});
   if(!done)$('scan').focus();if(!/show|ok|bad|warn|dock|man/.test($('msg').className.replace('idle','')))idle()}
 
 // ---- razón de salto ----

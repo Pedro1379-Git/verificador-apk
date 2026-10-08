@@ -42,8 +42,12 @@
   parchePDF();
   document.addEventListener('DOMContentLoaded', function () {
     parchePDF();
-    var h = document.querySelector('header span:last-child'); if (!h) return;
-    var a = document.createElement('a'); a.href = 'index.html?cfg=1'; a.textContent = ' ⚙'; a.style.marginLeft = '10px';
-    h.appendChild(a);
+    // En la app no hay barra de navegación ni módulo Embarques: el campo de escaneo queda siempre arriba
+    var n = document.querySelector('header.nav'); if (n) n.style.display = 'none';
+    var row = document.querySelector('#vScan .row');
+    if (row && !document.getElementById('cfg')) {
+      var a = document.createElement('a'); a.id = 'cfg'; a.href = 'index.html?cfg=1'; a.textContent = '⚙'; a.title = 'Servidor'; a.style.display = 'flex';
+      row.appendChild(a);
+    }
   });
 })();
