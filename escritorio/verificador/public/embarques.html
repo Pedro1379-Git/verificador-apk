@@ -69,7 +69,7 @@ table.m{border-collapse:collapse;width:100%;table-layout:fixed;font-size:8pt}
 <header class="nav"><b>Verificador</b><a href="escaneo.html">Escaneo</a><a class="on" href="embarques.html">Embarques</a><a href="index.html">Pedido (xlsx)</a><span class="sp"></span><span></span></header>
 <div class="pg">
 <div class="hd"><h1>Embarques del día</h1><select id="fecha" title="Fecha de salida"></select><span class="sp"></span>
- <a class="btn" id="aRes" href="#">⬇ CSV resumen</a><a class="btn" id="aLin" href="#">⬇ CSV detalle por parte</a><button class="sec" id="bTodos">🖨 Imprimir todos los Dock Audit</button><button id="bCargar">＋ Cargar documentos</button></div>
+ <button class="sec" id="bTodos">🖨 Imprimir todos los Dock Audit</button><button id="bCargar">＋ Cargar documentos</button></div>
 <section class="card" id="carga" hidden>
  <h2>Cargar documentos</h2>
  <label class="drop" id="drop"><input type="file" id="pdfs" accept=".pdf" multiple>⬆ Arrastra aquí los PDF o haz clic para elegirlos<small>MAN y ORDER son obligatorios · KAN es opcional · puedes elegir todos a la vez</small><span id="fnames"></span></label>
@@ -2523,7 +2523,6 @@ $('pdfs').addEventListener('change',nombres);
 $('drop').addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files.length){$('pdfs').files=e.dataTransfer.files;nombres()}});
 async function listar(){
   const f=$('fecha').value,r=await api('embarques',{fecha:f});
-  $('aRes').href='api.php?a=exportar&tipo=resumen&fecha='+f;$('aLin').href='api.php?a=exportar&tipo=lineas&fecha='+f;
   if(!f||![...$('fecha').options].length){const hoy=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
     $('fecha').innerHTML='<option value="">Todas</option>'+r.fechas.map(x=>`<option${x===hoy?' selected':''}>${x}</option>`).join('');
     if($('fecha').value&&!f)return listar()}
@@ -2574,6 +2573,7 @@ async function abrir(id){
 }
 
 // ===== Impresión del Dock Audit (blanco, negro y grises; carta horizontal, 1 hoja por embarque) =====
+const n0=v=>Number(v)||0;
 function qrSvg(txt){const q=qrcode(0,'M');q.addData(txt);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true})}
 function hojaHTML(e){
   const P=e.pallets_det,L=e.lineas,N=P.length;
@@ -2581,7 +2581,6 @@ function hojaHTML(e){
   const cs=[...new Set(L.map(l=>l.codigo))].sort(),inf={},cel={};
   L.forEach(l=>{inf[l.codigo]=l;cel[l.orden+'|'+l.codigo]=l});
   const csC=cs.filter(c=>!inf[c].es_rack),csR=cs.filter(c=>inf[c].es_rack);
-  const n0=v=>Number(v)||0;
   const sum=(cod,o)=>cod.reduce((a,c)=>a+n0((cel[o+'|'+c]||{}).esperado),0);
   const totC=csC.reduce((a,c)=>a+L.filter(l=>l.codigo===c).reduce((x,y)=>x+n0(y.esperado),0),0),totR=csR.reduce((a,c)=>a+L.filter(l=>l.codigo===c).reduce((x,y)=>x+n0(y.esperado),0),0);
   // grupos por serie (8 dígitos)
