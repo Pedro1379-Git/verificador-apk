@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+def runNumber = Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+
 android {
     namespace "mx.yagm.verificador"
     compileSdk rootProject.ext.compileSdkVersion
@@ -8,7 +10,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // versionCode sube con cada compilación de GitHub (número de ejecución) para que Android acepte la actualización
-        versionCode (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger() + 100
+        versionCode runNumber + 100
         versionName "2.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
