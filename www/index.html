@@ -18,10 +18,11 @@ button.s{background:#fff;color:#0A3FA8;border:2px solid #0A3FA8}
 <small>IP de la laptop con XAMPP y la carpeta donde está <b>api.php</b>. Ejemplo: <b>192.168.1.50/verificador/public</b></small>
 <button id="p">Probar conexión</button>
 <button id="g" class="s">Guardar y abrir</button>
-<div id="r"></div>
+<div id="r"></div><p style="text-align:center;color:#5B6780;font-size:12px;margin-top:18px" id="ver"></p>
 </main>
 <script src="config.js"></script><script src="apk-shim.js"></script>
 <script>
+document.addEventListener('DOMContentLoaded',function(){var e=document.getElementById('ver');if(e)e.textContent='App v'+((window.APK_CONFIG||{}).VERSION_APP||'')});
 var $=function(i){return document.getElementById(i)},s=$('s'),r=$('r');
 function ls(){try{return localStorage.getItem('servidor')||''}catch(e){return ''}}
 var cfg=/[?&]cfg=1/.test(location.search),ini=ls()||(window.APK_CONFIG||{}).SERVIDOR_POR_DEFECTO||'';

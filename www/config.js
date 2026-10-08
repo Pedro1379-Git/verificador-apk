@@ -6,5 +6,6 @@
 //   Se puede cambiar después con el botón ⚙ de la parte superior.
 // Si hay una dirección guardada desde la app, esa tiene prioridad sobre esta.
 window.APK_CONFIG = {
+  VERSION_APP: '2.1 · diseño azul · 08/10/2026',
   SERVIDOR_POR_DEFECTO: ''
 };

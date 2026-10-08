@@ -43,6 +43,8 @@
   document.addEventListener('DOMContentLoaded', function () {
     parchePDF();
     // En la app no hay barra de navegación ni módulo Embarques: el campo de escaneo queda siempre arriba
+    var m = document.querySelector('main');
+    if (m && CFG.VERSION_APP) { var v = document.createElement('div'); v.style.cssText = 'text-align:center;color:#5B6780;font-size:11px;padding:6px 0'; v.textContent = 'App v' + CFG.VERSION_APP; m.appendChild(v); }
     var n = document.querySelector('header.nav'); if (n) n.style.display = 'none';
     var row = document.querySelector('#vScan .row');
     if (row && !document.getElementById('cfg')) {
