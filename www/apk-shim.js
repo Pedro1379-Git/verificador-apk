@@ -42,7 +42,7 @@
   parchePDF();
   document.addEventListener('DOMContentLoaded', function () {
     parchePDF();
-    var h = document.querySelector('header span'); if (!h) return;
+    var h = document.querySelector('header span:last-child'); if (!h) return;
     var a = document.createElement('a'); a.href = 'index.html?cfg=1'; a.textContent = ' ⚙'; a.style.marginLeft = '10px';
     h.appendChild(a);
   });

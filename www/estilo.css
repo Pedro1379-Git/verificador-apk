@@ -1,0 +1,27 @@
+/* ===== Sistema visual común · Verificador de embarques (tema claro, azul fuerte) ===== */
+:root{--az:#0A3FA8;--az2:#1F5FE0;--azl:#E8F0FD;--ink:#0F1B33;--mut:#5B6780;--ln:#D5DDEB;--bg:#F3F6FB;
+  --ok:#14803C;--okl:#E3F5EA;--er:#C62828;--erl:#FCE8E8;--wa:#B26A00;--wal:#FFF1D6;--mo:#6D28D9;--man:#1D4ED8;--r:12px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 'Segoe UI',Roboto,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+h1{margin:0;font-size:22px}h2{margin:0 0 8px;font-size:16px;color:var(--az)}
+a{color:var(--az)}
+/* barra superior */
+.nav{background:var(--az);color:#fff;min-height:52px;display:flex;align-items:center;gap:22px;padding:0 18px;flex-wrap:wrap}
+.nav b{font-size:17px}.nav a{color:#fff;opacity:.82;text-decoration:none;font-size:14px;padding:16px 2px;border-bottom:4px solid transparent}
+.nav a.on{opacity:1;font-weight:700;border-bottom-color:#fff}.nav .sp{flex:1}.nav .pill{background:#ffffff26;border-radius:99px;padding:5px 12px;font-size:12px}
+/* botones: área táctil mínima 48 px en móvil */
+button,a.btn{font:700 14px/1.1 inherit;font-family:inherit;border-radius:10px;padding:12px 16px;min-height:44px;border:2px solid var(--az);background:var(--az);color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.sec,a.btn{background:#fff;color:var(--az)}button.bad{background:#fff;color:var(--er);border-color:var(--er)}
+button:disabled{opacity:.45;cursor:not-allowed}button:active{filter:brightness(.92)}
+select,input[type=text],textarea{font:600 14px inherit;font-family:inherit;padding:10px 12px;border:2px solid var(--ln);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{border-color:var(--az2);outline:0;box-shadow:0 0 0 3px #1f5fe033}
+.card{background:#fff;border:1px solid var(--ln);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.hint{color:var(--mut);font-size:13px;margin:6px 0 0}.ok{color:var(--ok)}.err{color:var(--er)}.warn{color:var(--wa)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+/* etiquetas de estatus */
+.st,.est{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}
+.st.creado,.est.creado{background:#E6EAF2;color:#44506a}.st.en_verificacion,.est.en_verificacion{background:var(--azl);color:var(--az)}.st.preparado,.est.preparado{background:var(--okl);color:var(--ok)}
+.rt{background:var(--ink);color:#fff;border-radius:8px;padding:3px 10px;font-weight:800}.dk{background:#5B6780;color:#fff;border-radius:8px;padding:3px 10px;font-weight:700}
+/* diálogos */
+dialog{border:0;border-radius:16px;padding:18px;width:min(92vw,460px);color:var(--ink)}dialog::backdrop{background:rgba(15,27,51,.55)}dialog h3{margin:0 0 6px;color:var(--az);font-size:18px}
+[hidden]{display:none!important}

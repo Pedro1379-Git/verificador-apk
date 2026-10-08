@@ -33,3 +33,8 @@ Por línea de comandos (con ANDROID_HOME configurado): `cd android` y `gradlew a
 - "Descargar Dock Audit" abre el menú de compartir/guardar de Android.
 - Los botones de exportar CSV de la pantalla Embarques se usan desde la laptop (navegador).
 - Si cambias los HTML de `public/`, vuelve a copiarlos a `www/` (con los scripts config.js/apk-shim.js ya incluidos).
+
+## Compilar en línea (GitHub Actions)
+Al subir cambios a `main` (o con *Actions → Compilar APK → Run workflow*) GitHub genera el APK.
+Descárgalo en la ejecución, sección *Artifacts* → `verificador-apk` (contiene `app-debug.apk`).
+Las pantallas están en `www/` (escaneo.html, embarques.html, estilo.css); el flujo ejecuta `npx cap sync android` antes de compilar.

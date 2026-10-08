@@ -1,63 +1,76 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Escaneo de embarque</title>
+<link rel="stylesheet" href="estilo.css"><meta name="theme-color" content="#0A3FA8">
 <style>
-:root{--ink:#1c2733;--mut:#5d6b7a;--line:#d5dce4;--bg:#eef2f6;--acc:#1f4e8c;--ok:#1b8a4b;--bad:#c0392b;--warn:#b7791f}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 'Segoe UI',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
-header{background:var(--acc);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}header b{font-size:16px}header a{color:#fff;font-size:14px}
 main{max-width:720px;margin:0 auto;padding:10px}
-#msg{position:fixed;left:10px;right:10px;bottom:max(14px,env(safe-area-inset-bottom));z-index:50;margin:0 auto;max-width:700px;padding:16px;border-radius:12px;font-weight:700;color:#fff;font-size:18px;box-shadow:0 6px 24px rgba(0,0,0,.35);opacity:0;transform:translateY(20px);pointer-events:none;transition:opacity .2s,transform .2s}#msg.show{opacity:1;transform:none}#msg.bad{background:var(--bad)}#msg.ok{background:var(--ok)}#msg.warn{background:var(--warn)}#msg.dock{background:#7c3aed}#msg.man{background:#1d4ed8}
-#vScan{position:sticky;top:0;z-index:30;box-shadow:0 3px 10px rgba(0,0,0,.12)}#camBox video{max-height:30vh}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
-.hero{display:flex;gap:10px;align-items:stretch}.hero .r{background:#000;color:#fff;border-radius:10px;padding:8px 14px;flex:1}.hero .r small{display:block;font-size:12px;opacity:.8}.hero .r b{font-size:34px;line-height:1.05;letter-spacing:.5px}
-.hero .d{background:#6b6b6b;color:#fff;border-radius:10px;padding:8px 12px;text-align:center}.hero .d small{display:block;font-size:12px;opacity:.85}.hero .d b{font-size:20px}
-.est{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:700}.est.en_verificacion{background:#fef3c7;color:#92400e}.est.preparado{background:#d1fae5;color:#065f46}.est.creado{background:#e5e7eb;color:#374151}
-.strip{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scroll-snap-type:x proximity}
-.chip{flex:0 0 auto;min-width:46px;text-align:center;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:#fff;font-weight:800;font-size:17px;scroll-snap-align:center}
-.chip small{display:block;font-size:10px;font-weight:600;color:var(--mut)}
-.chip.completo{background:#374151;border-color:#374151;color:#fff}.chip.completo small{color:#d1d5db}
-.chip.en_proceso{border-color:var(--acc);background:#e8f0fb;box-shadow:0 0 0 3px #bcd2f0}
-.chip.saltado{border-style:dashed;border-color:var(--warn);background:#fff7e0;color:var(--warn)}
-.chip.siguiente{border-color:#000;border-width:3px}
-.now h2{margin:0;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}.now .big{font-size:44px;font-weight:900;line-height:1}.now .sub{color:var(--mut);font-size:14px}
-.row{display:flex;gap:8px;align-items:center}
-input[type=text],textarea{width:100%;padding:14px;border:2px solid var(--line);border-radius:10px;font:17px Consolas,monospace}input:focus{border-color:var(--acc);outline:0}
-button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:14px 16px;font:700 16px inherit;cursor:pointer}button.sec{background:#fff;color:var(--acc);border:2px solid var(--acc)}button.bad{background:#fff;color:var(--bad);border:2px solid var(--bad)}
-.ln{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}.ln:last-child{border:0}
-.ln b{font-size:18px}.ln small{color:var(--mut)}.ln .q{font-size:24px;font-weight:900;text-align:right}.ln.ok .q{color:var(--ok)}
-.bar{grid-column:1/3;height:8px;background:#e5e7eb;border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}.ln.ok .bar i{background:var(--ok)}
-.tag{background:#000;color:#fff;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
-#camBox video{width:100%;max-height:42vh;background:#000;border-radius:10px;margin-top:8px}
-#rec{list-style:none;margin:0;padding:0;font-size:14px}#rec li{padding:4px 0;border-bottom:1px solid var(--line)}#rec li.mal{color:var(--bad)}#rec li.ANULADA{color:var(--mut);text-decoration:line-through}
-.hint{color:var(--mut);font-size:13px;margin:6px 0 0}
-dialog{border:0;border-radius:14px;padding:16px;width:min(92vw,460px)}dialog::backdrop{background:rgba(0,0,0,.5)}dialog h3{margin:0 0 6px}
-.rz{display:grid;gap:8px;margin:10px 0}.rz label{display:flex;gap:10px;align-items:center;border:2px solid var(--line);border-radius:10px;padding:12px;font-weight:600}.rz input{width:20px;height:20px}.rz label:has(input:checked){border-color:var(--acc);background:#e8f0fb}
-#vProg .k{display:flex;align-items:baseline;gap:8px}#vProg .k b{white-space:nowrap;font-size:40px;font-weight:900;line-height:1}#vProg .k span{color:var(--mut);font-weight:600;font-size:14px;line-height:1.2}
-.pb{height:14px;background:#e5e7eb;border-radius:8px;overflow:hidden;margin:8px 0}.pb i{display:block;height:100%;background:var(--ok)}
-.cnt{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}.cnt div{background:var(--bg);border-radius:8px;padding:6px 2px}.cnt b{display:block;font-size:20px}.cnt small{font-size:11px;color:var(--mut)}
-.pl details{border-bottom:1px solid var(--line)}.pl summary{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;padding:9px 0;cursor:pointer;list-style:none}.pl summary::-webkit-details-marker{display:none}
-.pl .n{font-size:22px;font-weight:900}.pl .st{font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:#e5e7eb;color:#374151;white-space:nowrap}.pl .st.completo{background:#d1fae5;color:#065f46}.pl .st.en_proceso{background:#dbeafe;color:#1e40af}.pl .st.saltado{background:#fef3c7;color:#92400e}
-.pl .mini{height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-top:4px}.pl .mini i{display:block;height:100%;background:var(--acc)}.pl .completo .mini i{background:var(--ok)}
-.pl .det{padding:0 0 8px 52px;font-size:14px;color:var(--mut)}.pl .det div{display:flex;justify-content:space-between}.pl .rz{display:block;color:var(--warn);font-size:13px;margin-top:2px}
-[hidden]{display:none!important}
+/* zona fija superior: campo de escaneo + aviso de resultado */
+#vScan{position:sticky;top:0;z-index:30;background:var(--az);border:0;border-radius:0 0 16px 16px;margin:-10px -10px 10px;padding:10px 12px 12px;box-shadow:0 4px 14px rgba(10,63,168,.3)}
+#vScan .row{flex-wrap:nowrap}#scan{flex:1;min-width:0;height:52px;font:17px Consolas,monospace;border-color:#fff}
+#bCam{width:52px;height:52px;padding:0;font-size:22px;background:var(--az2);border:2px solid #ffffff80;color:#fff}
+#msg{margin-top:10px;min-height:64px;border-radius:12px;display:flex;align-items:center;gap:12px;padding:8px 14px;font-weight:700;font-size:17px;line-height:1.2;color:#fff;background:#ffffff1f;border:1.5px dashed #ffffff80}
+#msg .ic{font-style:normal;font-size:30px;font-weight:800;width:34px;text-align:center;flex:none}#msg .tx{flex:1}
+#msg.idle{color:#fff;font-weight:600;font-size:15px}
+#msg.ok{background:var(--ok);border:0}#msg.bad{background:var(--er);border:0}#msg.warn{background:var(--wa);border:0}#msg.dock{background:var(--mo);border:0}#msg.man{background:var(--man);border:0}
+#vScan .hint{display:none}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:60;border:0 solid transparent;transition:border-width .12s}
+body[data-g=ok]::after{border:6px solid var(--ok)}body[data-g=bad]::after{border:6px solid var(--er)}
+/* cámara con marco de lectura */
+#camBox .vw{position:relative;margin-top:10px;border-radius:12px;overflow:hidden;background:#000}#camBox video{display:block;width:100%;max-height:34vh;object-fit:cover}
+#camBox .fr{position:absolute;inset:14% 18%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 999px #0007}
+#camBox .sl{position:absolute;left:18%;right:18%;top:50%;height:3px;background:var(--az2);box-shadow:0 0 12px var(--az2);animation:bar 1.6s ease-in-out infinite alternate}
+@keyframes bar{from{top:20%}to{top:78%}}
+#bStop{width:100%;margin-top:8px;background:#fff;color:var(--az)}
+/* ruta y avance */
+.route{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.route .rt{font-size:24px}.route .dk{font-size:15px}.route .est{margin-left:auto}
+.card{padding:12px}#vStrip{padding:8px 10px}.now.card .cur{padding:2px 0}
+.pt{display:flex;justify-content:space-between;font-size:14px;color:var(--mut)}.pt b{color:var(--ink);font-size:18px}
+.pb{height:10px;background:#E1E8F4;border-radius:99px;overflow:hidden;margin:8px 0 2px}.pb i{display:block;height:100%;background:var(--az2);border-radius:99px;transition:width .3s}
+/* tira de pallets */
+.strip{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scroll-snap-type:x proximity}
+.chip{flex:1 0 62px;text-align:center;padding:7px 6px;border-radius:10px;border:2px solid var(--ln);background:#fff;font-weight:800;font-size:19px;scroll-snap-align:center;min-height:50px}
+.chip small{display:block;font-size:11px;font-weight:600;color:var(--mut)}
+.chip.completo{background:var(--az);border-color:var(--az);color:#fff}.chip.completo small{color:#cfe0ff}
+.chip.en_proceso{border-color:var(--az2);border-width:3px;color:var(--az);background:var(--azl)}
+.chip.saltado{border-style:dashed;border-color:var(--wa);background:var(--wal);color:var(--wa)}
+.chip.siguiente{border-color:var(--az2);border-width:3px;color:var(--az)}
+/* pallet actual */
+.now h2{margin:0;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}.now .big{font-size:84px;font-weight:800;line-height:1.05;color:var(--az);text-align:center}
+.now .sub{color:var(--ink);font-size:15px;text-align:center}.now.wait{text-align:center}.cta{margin-top:12px;background:var(--azl);border-radius:12px;padding:12px;font-size:16px;font-weight:700;color:var(--az);text-align:center}
+.now .cur{font-size:13px;font-weight:700;color:var(--mut);letter-spacing:.04em}
+#vLn{padding:8px;background:transparent;border:0}
+.ln{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:11px 14px;margin-bottom:8px;background:#fff;border:1.5px solid var(--ln);border-radius:12px;align-items:center;transition:background .2s,border-color .2s}
+.ln b{font-size:19px}.ln small{color:var(--mut)}.ln .q{font-size:26px;font-weight:800;text-align:right;color:var(--az)}.ln.ok .q{color:var(--ok)}
+.ln .bar{grid-column:1/3;height:7px;background:#E1E8F4;border-radius:6px;overflow:hidden}.ln .bar i{display:block;height:100%;background:var(--az2)}.ln.ok .bar i{background:var(--ok)}
+.ln.hit{border:2px solid var(--ok);background:var(--okl)}.ln.mal{border:2px solid var(--er);background:var(--erl)}
+.tag{background:var(--ink);color:#fff;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+#vAct{display:flex;gap:10px}#vAct button{flex:1;min-height:56px;font-size:15px}
+/* avance por pallet y últimos escaneos */
+#vProg .pt+.pb{margin-top:8px}
+.pl details{border-bottom:1px solid var(--ln)}.pl summary{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;padding:10px 0;cursor:pointer;list-style:none}.pl summary::-webkit-details-marker{display:none}
+.pl .n{font-size:22px;font-weight:800}.pl .st{font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:#E6EAF2;color:#44506a;white-space:nowrap}.pl .st.completo{background:var(--okl);color:var(--ok)}.pl .st.en_proceso{background:var(--azl);color:var(--az)}.pl .st.saltado{background:var(--wal);color:var(--wa)}
+.pl .mini{height:6px;background:#E1E8F4;border-radius:4px;overflow:hidden;margin-top:4px}.pl .mini i{display:block;height:100%;background:var(--az2)}.pl .completo .mini i{background:var(--ok)}
+.pl .det{padding:0 0 8px 52px;font-size:14px;color:var(--mut)}.pl .det div{display:flex;justify-content:space-between}.pl .rz{display:block;color:var(--wa);font-size:13px;margin-top:2px}
+#rec{list-style:none;margin:0;padding:0;font-size:14px}#rec li{padding:5px 0;border-bottom:1px solid var(--ln)}#rec li.mal{color:var(--er);font-weight:600}#rec li.ANULADA{color:var(--mut);text-decoration:line-through}
+.rz{display:grid;gap:8px;margin:10px 0}.rz label{display:flex;gap:10px;align-items:center;border:2px solid var(--ln);border-radius:10px;padding:13px;font-weight:600;min-height:48px}.rz input{width:20px;height:20px}.rz label:has(input:checked){border-color:var(--az2);background:var(--azl)}
 </style><script src="config.js"></script><script src="dockpdf.js"></script><script src="apk-shim.js"></script></head><body>
-<header><b>Escaneo de embarque</b><span><a href="embarques.html">Embarques</a></span></header>
+<header class="nav"><b>Verificador</b><a class="on" href="escaneo.html">Escaneo</a><a href="embarques.html">Embarques</a><span class="sp"></span><span></span></header>
 <main>
-<div id="msg"></div>
 <div class="card" id="vScan">
   <div class="row"><input type="text" id="scan" autocomplete="off" inputmode="none" placeholder="Escanea con pistola o pega el QR…"><button id="bCam" class="sec">📷</button></div>
-  <div id="camBox" hidden><video id="vid" playsinline muted></video><button class="sec" id="bStop" style="width:100%;margin-top:8px">Cerrar cámara</button></div>
+  <div id="camBox" hidden><div class="vw"><video id="vid" playsinline muted></video><div class="fr"></div><div class="sl"></div></div><button class="sec" id="bStop">Cerrar cámara</button></div>
+  <div id="msg" class="idle"><i class="ic">▮▯</i><span class="tx">Escanea el QR del Dock Audit</span></div>
   <p class="hint" id="hint"></p>
 </div>
 <div id="vHead" class="card" hidden></div>
-
 <div id="vProg" class="card" hidden></div>
+
 <div id="vStrip" class="card" hidden><div class="strip" id="strip"></div></div>
 
 <div id="vNow" class="card now" hidden></div>
 
 
-<div id="vLn" class="card" hidden></div>
-<div id="vAct" class="row" hidden style="margin-bottom:10px"><button class="sec" id="bUndo" style="flex:1">↶ Deshacer último</button><button class="bad" id="bSkip" style="flex:1">Saltar pallet…</button></div>
+<div id="vLn" hidden></div>
+<div id="vAct" hidden style="margin-bottom:12px"><button class="sec" id="bUndo">↶ Deshacer último</button><button class="bad" id="bSkip">Saltar pallet…</button></div>
 <div class="card pl" id="vPl" hidden><b style="font-size:13px;color:var(--mut)">AVANCE POR PALLET</b><div id="pl"></div></div>
 <div class="card" id="vRec" hidden><b style="font-size:13px;color:var(--mut)">ÚLTIMOS ESCANEOS</b><ul id="rec"></ul></div>
 </main>
@@ -10180,8 +10193,14 @@ let AC=null;
 function beep(k){if(k==='ask'){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();[0,.22].forEach((dl,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=i?990:660;o.connect(g);g.connect(AC.destination);g.gain.value=.18;o.start(AC.currentTime+dl);o.stop(AC.currentTime+dl+.16)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([80,60,80])}catch(e){}return}
   try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=k==='dup'?'square':'sine';o.frequency.value=k==='ok'?880:k==='warn'?520:k==='dup'?180:220;o.connect(g);g.connect(AC.destination);g.gain.value=k==='dup'?.2:.15;o.start();o.stop(AC.currentTime+(k==='ok'?.12:k==='dup'?1.5:.4))}catch(e){}
   try{navigator.vibrate&&navigator.vibrate(k==='ok'?60:k==='dup'?[900]:[200,80,200])}catch(e){}}
-let toastT=0;
-function msg(t,k,snd){const m=$('msg');m.textContent=t;m.className=k+' show';beep(snd||(k==='dock'||k==='man'?'ok':k));clearTimeout(toastT);toastT=setTimeout(()=>{m.classList.remove('show')},k==='ok'?2200:k==='dock'||k==='man'?3000:4000)}
+let toastT=0,glowT=0;
+function idle(){const m=$('msg');m.className='idle';m.innerHTML='<i class="ic">▮▯</i><span class="tx">'+esc($('hint').textContent||'Listo para escanear')+'</span>'}
+function glow(k){const g=k==='ok'?'ok':(k==='bad'?'bad':'');if(!g)return;document.body.dataset.g=g;clearTimeout(glowT);glowT=setTimeout(()=>{delete document.body.dataset.g},g==='bad'?1500:700)}
+/* aviso compacto bajo el campo de escaneo (no tapa la pantalla): ok 2.2 s · dock/man 3 s · errores 4 s */
+function msg(t,k,snd){const m=$('msg'),ic={ok:'✔',bad:'✖',warn:'!',dock:'◆',man:'◆'}[k]||'•';
+  m.className=k;m.innerHTML=`<i class="ic">${ic}</i><span class="tx">${esc(String(t).replace(/^[✔✖]\s*/,''))}</span>`;glow(k);beep(snd||(k==='dock'||k==='man'?'ok':k));
+  clearTimeout(toastT);toastT=setTimeout(idle,k==='ok'?2200:k==='dock'||k==='man'?3000:4000)}
+function hl(c,cls){if(!c)return;const e=document.querySelector('.ln[data-c="'+c+'"]');if(!e)return;e.classList.add(cls);setTimeout(()=>e.classList.remove(cls),1500)}
 async function api(a,b){const r=await fetch('api.php?a='+a,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});
   const j=await r.json().catch(()=>({error:'Respuesta inválida del servidor'}));if(!r.ok){const e=new Error(j.error||r.status);e.data=j;throw e}return j}
 const sv=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}},ld=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
@@ -10192,15 +10211,13 @@ function render(){
   if(!has){$('vNow').hidden=$('vLn').hidden=$('vAct').hidden=$('vRec').hidden=true;$('hint').textContent='Paso 1: escanea el QR del Dock Audit impreso.';return}
   const e=ST.embarque,P=ST.pallets,ab=P.find(p=>p.orden===ST.abierto),sig=P.find(p=>p.orden===ST.siguiente);
   const tc=P.filter(p=>p.estado==='completo').length;
-  $('vHead').innerHTML=`<div class="hero"><div class="r"><small>RUTA</small><b>${esc(e.ruta)}</b></div><div class="d"><small>DOCK</small><b>${esc(e.dock)}</b></div></div>
-    <div style="margin-top:6px"><span class="est ${e.estatus}">${ETQ[e.estatus]}</span> <span class="hint">Salida ${esc(e.salida.slice(11,16))} · ${tc}/${P.length} pallets completos</span></div>`;
+  const _tE=P.reduce((x,p)=>x+p.esperado,0),_tX=P.reduce((x,p)=>x+p.escaneado,0);
+  $('vHead').innerHTML=`<div class="route"><span class="rt">${esc(e.ruta)}</span><span class="dk">${esc(e.dock)}</span><span class="est ${e.estatus}">${ETQ[e.estatus]}</span></div>
+    <div class="pt" style="margin-top:8px"><span><b>${tc} / ${P.length}</b> pallets completos · salida ${esc(e.salida.slice(11,16))}</span><span>${_tE?Math.round(100*_tX/_tE):0} % piezas</span></div><div class="pb"><i style="width:${_tE?100*_tX/_tE:0}%"></i></div>`;
   $('strip').innerHTML=P.map(p=>`<div class="chip ${p.estado}${p.orden===ST.siguiente&&!ab?' siguiente':''}" data-o="${p.orden}">${esc(p.sufijo)}<small>${p.estado==='completo'?'✓':p.estado==='saltado'?'saltado':p.escaneado+'/'+p.esperado}</small></div>`).join('');
   const nP=P.length,nC=tc,nS=P.filter(p=>p.estado==='saltado').length,nA=P.filter(p=>p.estado==='en_proceso').length,nPe=nP-nC-nS-nA;
   const tE=P.reduce((a,p)=>a+p.esperado,0),tX=P.reduce((a,p)=>a+p.escaneado,0);
-  $('vProg').hidden=false;$('vProg').innerHTML=`<div class="k"><b>${nC} / ${nP}</b><span>pallets completos (planeados: ${nP})</span></div>
-    <div class="pb"><i style="width:${nP?100*nC/nP:0}%"></i></div>
-    <div class="cnt"><div><b>${nC}</b><small>completos</small></div><div><b>${nA}</b><small>en proceso</small></div><div><b>${nS}</b><small>saltados</small></div><div><b>${nPe}</b><small>pendientes</small></div></div>
-    <div class="hint">Piezas escaneadas: <b>${tX}</b> de ${tE} (${tE?Math.round(100*tX/tE):0}%)</div>`;
+  $('vProg').hidden=true;
   $('vPl').hidden=false;
   const abiertos=new Set([...document.querySelectorAll('#pl details[open]')].map(d=>d.dataset.o));
   $('pl').innerHTML=P.map(p=>`<details data-o="${p.orden}"${abiertos.has(p.orden)?' open':''} class="${p.estado}"><summary><span class="n">${esc(p.sufijo)}</span><span><b>${p.escaneado}/${p.esperado}</b><span class="mini" style="display:block"><i style="display:block;width:${p.esperado?100*p.escaneado/p.esperado:0}%"></i></span></span><span class="st ${p.estado}">${{pendiente:'Pendiente',en_proceso:'En proceso',completo:'Completo',saltado:'Saltado'}[p.estado]}</span></summary>
@@ -10208,14 +10225,15 @@ function render(){
   const done=e.estatus==='preparado';
   $('vScan').hidden=done;
   const cur=ab||sig||P.find(p=>p.estado==='saltado');
-  if(done){$('vNow').hidden=false;$('vNow').innerHTML=`<div class="big" style="color:var(--ok)">✔ Embarque preparado</div><div class="sub">Todos los pallets están completos.</div><button id="bDl" style="margin-top:10px;width:100%">⬇ Descargar Dock Audit actualizado (PDF)</button>`;$('bDl').onclick=()=>descargar($('bDl'));$('vLn').hidden=$('vAct').hidden=true}
+  if(done){$('vNow').hidden=false;$('vNow').className='card now';$('vNow').innerHTML=`<div class="big" style="color:var(--ok);font-size:40px">✔ Embarque preparado</div><div class="sub">Todos los pallets están completos.</div><button id="bDl" style="margin-top:10px;width:100%">⬇ Descargar Dock Audit actualizado (PDF)</button>`;$('bDl').onclick=()=>descargar($('bDl'));$('vLn').hidden=$('vAct').hidden=true}
   else if(ab){
-    $('vNow').hidden=false;$('vNow').innerHTML=`<h2>Escaneando etiquetas · pallet</h2><div class="big">${esc(ab.sufijo)}</div><div class="sub">Orden ${esc(ab.orden)} · ${ab.escaneado} de ${ab.esperado}</div>`;
-    $('vLn').hidden=false;$('vLn').innerHTML=ab.lineas.map(l=>`<div class="ln ${l.escaneado>=l.esperado?'ok':''}"><div><b>${esc(l.codigo)}</b>${l.es_rack?'<span class="tag">RACKS</span>':''}<br><small>${esc(l.parte)}${l.pzas?' · '+l.pzas+' pzs'+(l.es_rack?'/rack':'/caja'):''}</small></div><div class="q">${l.escaneado}/${l.esperado}</div><div class="bar"><i style="width:${Math.min(100,100*l.escaneado/l.esperado)}%"></i></div></div>`).join('');
+    $('vNow').hidden=false;$('vNow').className='card now';$('vNow').innerHTML=`<div class="cur">PALLET ${esc(ab.sufijo)} · ORDEN ${esc(ab.orden)} · ${ab.escaneado} DE ${ab.esperado}</div>`;
+    $('vLn').hidden=false;$('vLn').innerHTML=ab.lineas.map(l=>`<div class="ln ${l.escaneado>=l.esperado?'ok':''}" data-c="${esc(l.codigo)}"><div><b>${esc(l.codigo)}</b>${l.es_rack?'<span class="tag">RACKS</span>':''}<br><small>${esc(l.parte)}${l.pzas?' · '+l.pzas+' pzs'+(l.es_rack?'/rack':'/caja'):''}</small></div><div class="q">${l.escaneado}/${l.esperado}</div><div class="bar"><i style="width:${Math.min(100,100*l.escaneado/l.esperado)}%"></i></div></div>`).join('');
     $('vAct').hidden=false;$('hint').textContent=`Escanea cada etiqueta del pallet ${ab.sufijo}.`}
   else{
     $('vNow').hidden=false;
-    if(sig)$('vNow').innerHTML=`<h2>Siguiente pallet</h2><div class="big">${esc(sig.sufijo)}</div><div class="sub">Orden ${esc(sig.orden)} · escanea su manifiesto</div>`;
+    $('vNow').className='card now wait';
+    if(sig)$('vNow').innerHTML=`<h2>Siguiente pallet</h2><div class="big">${esc(sig.sufijo)}</div><div class="sub">Orden ${esc(sig.orden)}</div><div class="cta">Escanea el manifiesto de este pallet</div>`;
     else $('vNow').innerHTML=`<h2>Pallets saltados pendientes</h2><div class="big">${P.filter(p=>p.estado==='saltado').map(p=>esc(p.sufijo)).join(' · ')}</div><div class="sub">Escanea el manifiesto del pallet que quieras retomar.</div>`;
     $('vLn').hidden=true;$('vAct').hidden=!sig;$('bUndo').hidden=true;$('hint').textContent='Escanea el manifiesto del pallet indicado.'}
   $('bUndo').hidden=!ab;
@@ -10224,7 +10242,7 @@ function render(){
   $('vRec').hidden=!ST.recientes.length;
   $('rec').innerHTML=ST.recientes.map(r=>`<li class="${r.resultado==='OK'||r.resultado==='ANULADA'?r.resultado:'mal'}">${r.hora} · ${esc(r.orden.slice(8))} · ${esc(r.parte||'?')} · ${r.resultado}${r.aviso?' ⚠':''}</li>`).join('');
   const c=document.querySelector('.chip.en_proceso,.chip.siguiente');if(c)c.scrollIntoView({inline:'center',block:'nearest'});
-  if(!done)$('scan').focus()}
+  if(!done)$('scan').focus();if(!/show|ok|bad|warn|dock|man/.test($('msg').className.replace('idle','')))idle()}
 
 // ---- razón de salto ----
 const RAZONES=['Material no disponible / falta producción','Pallet aún no está listo','Pallet con problema de calidad / retrabajo','Se cargó antes por indicación del líder','Otro'];
@@ -10268,7 +10286,7 @@ async function onScan(t){
     const l=parseLabel(t);
     if(l){
       if(!ST.abierto)return msg('✖ Primero escanea el manifiesto del pallet'+(ST.siguiente?' '+ST.pallets.find(p=>p.orden===ST.siguiente).sufijo:'')+'.','bad');
-      const j=await api('esc_etiqueta',{id:ST.embarque.id,qr:l.qr,parte:l.parte,piezas:l.piezas});ST=j;render();
+      const j=await api('esc_etiqueta',{id:ST.embarque.id,qr:l.qr,parte:l.parte,piezas:l.piezas});ST=j;render();hl(j.codigo,j.resultado==='OK'?'hit':'mal');
       if(j.resultado==='OK'){
         if(j.embarque_completo){msg('✔ EMBARQUE PREPARADO','ok');setTimeout(mostrarFin,900)}
         else if(j.pallet_completo)msg(`✔ Pallet ${j.pallet} completo`+(ST.siguiente?`. Sigue el ${ST.pallets.find(p=>p.orden===ST.siguiente).sufijo}`:''),'ok');

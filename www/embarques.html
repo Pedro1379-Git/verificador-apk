@@ -1,18 +1,31 @@
 <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Embarques · Dock Audit</title>
+<link rel="stylesheet" href="estilo.css"><meta name="theme-color" content="#0A3FA8">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#eef2f6;color:#1c2733;font:14px/1.4 'Segoe UI',system-ui,sans-serif}
-.bar{background:#1f4e8c;color:#fff;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}.bar b{font-size:17px}.bar a{color:#fff}
-.panel{max-width:1200px;margin:12px auto;background:#fff;border:1px solid #d5dce4;border-radius:8px;padding:14px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}h2{margin:0 0 8px;font-size:16px;color:#1f4e8c}
-a.btn{display:inline-block;text-decoration:none;font:600 13px inherit;padding:8px 12px;border-radius:6px;border:1px solid #1f4e8c;color:#1f4e8c;background:#fff}button,select{font:600 14px inherit;padding:9px 14px;border-radius:6px;border:1px solid #1f4e8c}button{background:#1f4e8c;color:#fff;cursor:pointer}button:disabled{opacity:.45;cursor:default}select{background:#fff;color:#1f4e8c}
-.hint{color:#5d6b7a;font-size:13px;margin:6px 0 0}.ok{color:#1b8a4b}.err{color:#b42318}.warn{color:#b7791f}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.chip{padding:4px 10px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid #c5ced8;background:#f5f7fa;color:#5d6b7a}.chip.on{background:#e3f4ea;border-color:#1b8a4b;color:#1b8a4b}
-table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #d5dce4;padding:6px 8px;text-align:left}th{background:#f2f5f9}td.n,th.n{text-align:right}
-tr.sel{background:#eaf1fb}tbody tr{cursor:pointer}
-.st{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}.st.creado{background:#e5e7eb;color:#374151}.st.en_verificacion{background:#fef3c7;color:#92400e}.st.preparado{background:#d1fae5;color:#065f46}
-.mx{overflow:auto}.mx table{font-size:12px}.mx td,.mx th{text-align:center;padding:4px 6px}.mx td.l{text-align:left}.mx td.rk{background:#e5e7eb}.mx td.na{background:repeating-linear-gradient(45deg,#fff,#fff 3px,#d1d5db 3px,#d1d5db 4px)}
-.log{font-size:12px;color:#5d6b7a;margin-top:8px}
-
+.pg{max-width:1500px;margin:0 auto;padding:18px 22px}
+.hd{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}.hd .sp{flex:1}
+.hd select{font-size:15px;font-weight:700}
+/* carga de documentos */
+#carga{border-left:6px solid var(--az2)}
+.drop{position:relative;display:block;border:3px dashed #9DB8EE;background:var(--azl);border-radius:14px;padding:22px;text-align:center;color:var(--az);font-weight:700;font-size:16px;cursor:pointer}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}.drop small{display:block;font-weight:400;color:var(--mut);margin-top:4px;font-size:13px}.drop.over{background:#d6e4fb;border-color:var(--az2)}
+#fnames{display:block;margin-top:6px;font-weight:600;color:var(--ink);font-size:13px}
+.chips{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}.chip{flex:1 1 220px;padding:12px 14px;border-radius:12px;font-size:14px;font-weight:700;border:1px solid var(--ln);border-left:6px solid #8A96AD;background:#fff;color:var(--mut)}
+.chip.on{border-left-color:var(--ok);color:var(--ok);background:var(--okl)}
+/* indicadores */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:16px}
+.kp{background:#fff;border:1px solid var(--ln);border-left:6px solid #8A96AD;border-radius:12px;padding:12px 16px}.kp .l{font-size:12px;font-weight:700;color:var(--mut);letter-spacing:.05em}.kp .v{font-size:32px;font-weight:800;line-height:1.1}.kp small{color:var(--mut);font-size:12px}
+.kp.b{border-left-color:var(--az2)}.kp.o{border-left-color:var(--ok)}.kp.w{border-left-color:var(--wa)}
+/* tabla + detalle */
+.main2{display:flex;gap:16px;align-items:flex-start}.tb{flex:1;min-width:0;padding:0;overflow:auto}.det{width:430px;flex:none;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media(max-width:1250px){.main2{flex-direction:column}.det{width:100%;position:static;max-height:none}}
+table{border-collapse:collapse;width:100%;font-size:13px}th{text-align:left;font-size:11px;color:var(--mut);letter-spacing:.05em;padding:11px 12px;border-bottom:2px solid var(--ln);text-transform:uppercase;white-space:nowrap}
+td{padding:10px 10px;border-bottom:1px solid #E6ECF6;white-space:nowrap}td.n,th.n{text-align:right}tbody tr{cursor:pointer}tbody tr:hover td{background:#f6f9ff}tr.sel td{background:var(--azl)!important}td b.r{font-size:16px}
+.bar2{display:inline-block;width:90px;height:8px;border-radius:99px;background:#E1E8F4;vertical-align:middle;margin-right:6px}.bar2 i{display:block;height:100%;border-radius:99px;background:var(--az2)}.bar2.ok i{background:var(--ok)}
+.dh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.dh .rt{font-size:22px}.dh .st{margin-left:auto}
+.mx{overflow:auto;margin:12px 0}.mx table{font-size:12px}.mx th{background:var(--az);color:#fff;text-align:center;padding:6px;border:1px solid #fff}.mx td{border:1px solid var(--ln);text-align:center;padding:5px 6px}.mx td.l{text-align:left}.mx td.rk{background:#E6EAF2}.mx td.na{background:repeating-linear-gradient(45deg,#fff,#fff 3px,#d1d5db 3px,#d1d5db 4px)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.acts button,.acts a.btn{flex:1 1 auto}
+.log{font-size:12px;color:var(--mut);margin-top:10px}
+details summary{cursor:pointer;font-weight:700;color:var(--az);margin:8px 0}
 #imp{display:none}
 .hoja{width:265mm;height:201mm;overflow:hidden;background:#fff;color:#000;font-family:Calibri,'Segoe UI',Arial,sans-serif;position:relative;page-break-after:always;break-after:page}
 .hoja .in{width:265mm;transform-origin:0 0}
@@ -43,24 +56,28 @@ table.m{border-collapse:collapse;width:100%;table-layout:fixed;font-size:8pt}
 @media print{
  @page{size:letter landscape;margin:7mm}
  body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
- .bar,.panel{display:none!important}#imp{display:block}.hoja:last-child{page-break-after:auto;break-after:auto}
+ .nav,.pg{display:none!important}#imp{display:block}.hoja:last-child{page-break-after:auto;break-after:auto}
 }
 </style><script src="config.js"></script><script src="dockpdf.js"></script><script src="apk-shim.js"></script></head><body>
 <div id="imp"></div>
-<div class="bar"><b>Embarques · Dock Audit</b><a href="escaneo.html">Escaneo →</a> <a href="index.html">← Verificador</a></div>
-<div class="panel">
- <h2>1. Cargar documentos</h2>
- <div class="row"><input type="file" id="pdfs" accept=".pdf" multiple><button id="bLeer">Leer PDF</button></div>
- <div class="chips"><span class="chip" id="cMan">MAN: —</span><span class="chip" id="cOrd">ORDER: —</span><span class="chip" id="cKan">KAN: — (verifica cantidades)</span></div>
- <p class="hint">MAN y ORDER son obligatorios: sin la ORDER de cada pedido el embarque no se crea. La KAN es opcional y solo verifica contra la ORDER. Puedes elegir todos los PDF a la vez.</p>
- <div class="row" style="margin-top:10px"><button id="bCrear" disabled>Crear embarques</button><span id="msg"></span></div>
+<header class="nav"><b>Verificador</b><a href="escaneo.html">Escaneo</a><a class="on" href="embarques.html">Embarques</a><a href="index.html">Pedido (xlsx)</a><span class="sp"></span><span></span></header>
+<div class="pg">
+<div class="hd"><h1>Embarques del día</h1><select id="fecha" title="Fecha de salida"></select><span class="sp"></span>
+ <a class="btn" id="aRes" href="#">⬇ CSV resumen</a><a class="btn" id="aLin" href="#">⬇ CSV detalle por parte</a><button class="sec" id="bTodos">🖨 Imprimir todos los Dock Audit</button><button id="bCargar">＋ Cargar documentos</button></div>
+<section class="card" id="carga" hidden>
+ <h2>Cargar documentos</h2>
+ <label class="drop" id="drop"><input type="file" id="pdfs" accept=".pdf" multiple>⬆ Arrastra aquí los PDF o haz clic para elegirlos<small>MAN y ORDER son obligatorios · KAN es opcional · puedes elegir todos a la vez</small><span id="fnames"></span></label>
+ <div class="chips"><span class="chip" id="cMan">MAN: —</span><span class="chip" id="cOrd">ORDER: —</span><span class="chip" id="cKan">KAN: — (opcional)</span></div>
+ <p class="hint">Sin la ORDER de cada pedido el embarque no se crea. La KAN solo verifica cantidades contra la ORDER.</p>
+ <div class="row" style="margin-top:10px"><button id="bLeer" class="sec">Leer PDF</button><button id="bCrear" disabled>Crear embarques</button><span id="msg"></span></div>
  <div id="res"></div>
+</section>
+<div class="kpis" id="kpis"></div>
+<div class="main2">
+ <div class="card tb"><table><thead><tr><th>Salida</th><th>Ruta</th><th>Dock</th><th class="n">Pallets</th><th class="n">Cajas</th><th class="n">Racks</th><th>Avance</th><th>KAN</th><th>Estatus</th></tr></thead><tbody id="lista"></tbody></table>
+  <p class="hint" style="padding:0 14px 12px">Ordenado por hora de salida · clic en un renglón para ver el detalle.</p></div>
+ <div class="card det" id="det"><p class="hint">Selecciona un embarque para ver su detalle.</p></div>
 </div>
-<div class="panel">
- <h2>2. Embarques</h2>
- <div class="row"><label>Fecha de salida <select id="fecha"></select></label><button id="bTodos">🖨 Imprimir todos los Dock Audit de la fecha</button><a class="btn" id="aRes" href="#">⬇ CSV resumen de la fecha</a><a class="btn" id="aLin" href="#">⬇ CSV detalle por parte</a></div>
- <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>Salida</th><th>Ruta</th><th>Dock</th><th class="n">Pallets</th><th class="n">Cajas</th><th class="n">Racks</th><th>KAN</th><th>Estatus</th></tr></thead><tbody id="lista"></tbody></table></div>
- <div id="det"></div>
 </div>
 <script>/**
  * @licstart The following is the entire license notice for the
@@ -2493,14 +2510,29 @@ $('bCrear').onclick=async()=>{
 };
 
 let SEL='';
+$('bCargar').onclick=()=>{$('carga').hidden=!$('carga').hidden};
+const nombres=()=>{$('fnames').textContent=[...$('pdfs').files].map(f=>f.name).join(' · ')};
+$('pdfs').addEventListener('change',nombres);
+['dragenter','dragover'].forEach(t=>$('drop').addEventListener(t,e=>{e.preventDefault();$('drop').classList.add('over')}));
+['dragleave','drop'].forEach(t=>$('drop').addEventListener(t,e=>{e.preventDefault();$('drop').classList.remove('over')}));
+$('drop').addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files.length){$('pdfs').files=e.dataTransfer.files;nombres()}});
 async function listar(){
   const f=$('fecha').value,r=await api('embarques',{fecha:f});
   $('aRes').href='api.php?a=exportar&tipo=resumen&fecha='+f;$('aLin').href='api.php?a=exportar&tipo=lineas&fecha='+f;
   if(!f||![...$('fecha').options].length){const hoy=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
     $('fecha').innerHTML='<option value="">Todas</option>'+r.fechas.map(x=>`<option${x===hoy?' selected':''}>${x}</option>`).join('');
     if($('fecha').value&&!f)return listar()}
-  $('lista').innerHTML=r.embarques.map(e=>`<tr data-id="${esc(e.id)}" class="${e.id===SEL?'sel':''}"><td>${fd(e.salida)}</td><td><b>${esc(e.ruta)}</b></td><td>${esc(e.dock)}</td><td class="n">${e.pallets}</td><td class="n">${e.cajas}</td><td class="n">${e.racks}</td>
-    <td>${!e.con_kan?'<span class="hint" title="No hay etiquetas KAN cargadas para las órdenes de este embarque; solo se verifica con la ORDER">Sin KAN</span>':e.dif_kan?`<span class="warn">⚠ ${e.dif_kan} difieren</span>`:e.con_kan<e.total_lin?`<span class="warn" title="Hay KAN solo de ${e.con_kan} de ${e.total_lin} partes; el resto no se pudo comparar">✓ coincide · parcial ${e.con_kan}/${e.total_lin}</span>`:'<span class="ok">✓ coincide</span>'}</td><td><span class="st ${e.estatus}">${ETQ[e.estatus]}</span></td></tr>`).join('')||'<tr><td colspan="8">Sin embarques en esta fecha.</td></tr>';
+  const E=r.embarques,nf=g=>E.filter(g).length,tot=(k)=>E.reduce((a,e)=>a+(+e[k]||0),0),hh=x=>String(x).slice(11,16);
+  const sig=E.filter(e=>e.estatus==='creado').map(e=>e.salida).sort()[0];
+  $('kpis').innerHTML=[['g','EMBARQUES',E.length,`${tot('pallets')} pallets · ${tot('cajas')} cajas · ${tot('racks')} racks`],
+    ['b','EN VERIFICACIÓN',nf(e=>e.estatus==='en_verificacion'),E.filter(e=>e.estatus==='en_verificacion').map(e=>esc(e.ruta)).join(', ')||'—'],
+    ['o','PREPARADOS',nf(e=>e.estatus==='preparado'),E.length?Math.round(100*nf(e=>e.estatus==='preparado')/E.length)+' % del día':'—'],
+    ['w','POR PREPARAR',nf(e=>e.estatus==='creado'),sig?'Próxima salida '+hh(sig):'—'],
+    ['w','SIN KAN',nf(e=>!e.con_kan),nf(e=>!e.con_kan)?'Carga la KAN y vuelve a crear':'Todo con KAN']].map(([c,l,v,sm])=>`<div class="kp ${c}"><div class="l">${l}</div><div class="v">${v}</div><small>${sm}</small></div>`).join('');
+  $('lista').innerHTML=E.map(e=>`<tr data-id="${esc(e.id)}" class="${e.id===SEL?'sel':''}"><td><b>${f?hh(e.salida):fd(e.salida)}</b></td><td><b class="r">${esc(e.ruta)}</b></td><td>${esc(e.dock)}</td><td class="n">${e.pallets}</td><td class="n">${e.cajas}</td><td class="n">${e.racks}</td>
+    <td><span class="bar2${e.estatus==='preparado'?' ok':''}"><i style="width:${e.pallets?100*(e.pal_ok||0)/e.pallets:0}%"></i></span>${e.pal_ok||0}/${e.pallets}</td>
+    <td>${!e.con_kan?'<span class="warn" style="font-weight:700" title="No hay etiquetas KAN cargadas para las órdenes de este embarque; solo se verifica con la ORDER">Sin KAN</span>':e.dif_kan?`<span class="warn">⚠ ${e.dif_kan} difieren</span>`:e.con_kan<e.total_lin?`<span class="warn" title="Hay KAN solo de ${e.con_kan} de ${e.total_lin} partes; el resto no se pudo comparar">✓ coincide · parcial ${e.con_kan}/${e.total_lin}</span>`:'<span class="ok">✓ coincide</span>'}</td><td><span class="st ${e.estatus}">${ETQ[e.estatus]}</span></td></tr>`).join('')||'<tr><td colspan="9">Sin embarques en esta fecha.</td></tr>';
+  if(!E.length)$('carga').hidden=false;
   document.querySelectorAll('#lista tr[data-id]').forEach(tr=>tr.onclick=()=>abrir(tr.dataset.id));
 }
 $('fecha').onchange=listar;
@@ -2516,12 +2548,14 @@ async function abrir(id){
     P.map(p=>{const x=cel[p.orden+'|'+c];return x?`<td class="${x.es_rack?'rk':''}"><b>${x.esperado}</b>${x.kan!=null&&x.kan!==x.esperado?` <span class="warn" title="KAN: ${x.kan}">⚠${x.kan}</span>`:''}</td>`:'<td class="na"></td>'}).join('')+
     `<td><b>${e.lineas.filter(z=>z.codigo===c).reduce((a,z)=>a+z.esperado,0)}</b></td></tr>`}).join('');
   const sel=Object.keys(ETQ).map(k=>`<option value="${k}"${k===e.estatus?' selected':''}>${ETQ[k]}</option>`).join('');
-  $('det').innerHTML=`<hr><div class="row"><h2 style="margin:0">${esc(e.id)}</h2><span class="st ${e.estatus}">${ETQ[e.estatus]}</span>
-    <button id="bPdf" class="sec" style="margin-left:auto;background:#fff;color:#1f4e8c">⬇ Dock Audit auditado (PDF)</button><button id="bUno">🖨 Imprimir Dock Audit</button><label>Cambiar estatus <select id="selEst">${sel}</select></label></div>
-    <p class="hint">ID del QR = ruta + dock + fecha + hora de salida. ${e.pallets} pallets · ${e.cajas} cajas · ${e.racks} racks.</p>
-    <div class="row" style="margin:8px 0"><b>Exportar CSV:</b>
-      <a class="btn" href="api.php?a=exportar&tipo=resumen&id=${encodeURIComponent(e.id)}">Resumen por pallet</a><a class="btn" href="api.php?a=exportar&tipo=lineas&id=${encodeURIComponent(e.id)}">Detalle por parte</a><a class="btn" href="api.php?a=exportar&tipo=escaneos&id=${encodeURIComponent(e.id)}">Bitácora de escaneos</a><a class="btn" href="api.php?a=exportar&tipo=saltos&id=${encodeURIComponent(e.id)}">Saltos y razones</a></div>
+  const q=encodeURIComponent(e.id);
+  $('det').innerHTML=`<div class="dh"><span class="rt">${esc(e.ruta)}</span><span class="dk">${esc(e.dock)}</span><span class="st ${e.estatus}">${ETQ[e.estatus]}</span></div>
+    <p class="hint">Salida ${fd(e.salida)} · ${e.pallets} pallets · ${e.cajas} cajas · ${e.racks} racks<br>ID del QR: <b>${esc(e.id)}</b></p>
     <div class="mx"><table><thead><tr><th>Código</th><th>N.º de parte</th><th>Pzs</th>${th}<th>Total</th></tr></thead><tbody>${body}</tbody></table></div>
+    <div class="acts"><button id="bUno">🖨 Imprimir Dock Audit</button><button id="bPdf" class="sec">⬇ PDF auditado</button></div>
+    <details><summary>Exportar CSV y cambiar estatus</summary><div class="acts">
+      <a class="btn" href="api.php?a=exportar&tipo=resumen&id=${q}">Resumen por pallet</a><a class="btn" href="api.php?a=exportar&tipo=lineas&id=${q}">Detalle por parte</a><a class="btn" href="api.php?a=exportar&tipo=escaneos&id=${q}">Bitácora de escaneos</a><a class="btn" href="api.php?a=exportar&tipo=saltos&id=${q}">Saltos y razones</a></div>
+      <p style="margin:10px 0 0"><label>Cambiar estatus <select id="selEst">${sel}</select></label></p></details>
     <div id="hist"></div>
     <div class="log">${e.log.map(x=>`${fd(x.hora.slice(0,16))} · ${ETQ[x.estatus]} · ${esc(x.nota||'')}`).join('<br>')}</div>`;
   $('bUno').onclick=()=>imprimir([id]);
