@@ -286,7 +286,7 @@ try {
       if ($abierto && $abierto !== $o) out(409, ['error' => "✖ Falta terminar el pallet {$P[$abierto]['sufijo']} (o saltarlo con razón).", 'abierto' => $abierto]);
       $saltar = [];
       if ($p['estado'] === 'pendiente') foreach ($st['pallets'] as $q) { if ($q['orden'] === $o) break; if ($q['estado'] === 'pendiente') $saltar[] = $q['orden']; }
-      if ($saltar && $razon === '') out(409, ['error' => 'Fuera de secuencia', 'requiere_razon' => true, 'saltar' => array_map(fn($x) => $P[$x]['sufijo'], $saltar), 'esperado' => $P[$saltar[0]]['sufijo']]);
+      if ($saltar && $razon === '') out(409, ['error' => 'Fuera de secuencia', 'requiere_razon' => true, 'saltar' => array_map(function ($x) use ($P) { return $P[$x]['sufijo']; }, $saltar), 'esperado' => $P[$saltar[0]]['sufijo']]);
       $db->beginTransaction();
       foreach ($saltar as $x) { $db->prepare("UPDATE embarque_pallets SET estado='saltado',razon=? WHERE embarque_id=? AND orden=?")->execute([$razon, $id, $x]);
         $db->prepare('INSERT INTO embarque_saltos(embarque_id,orden,razon) VALUES(?,?,?)')->execute([$id, $x, $razon]); }
@@ -329,7 +329,7 @@ try {
       if ($res === 'OK' && array_sum(array_column($pal['lineas'], 'escaneado')) >= array_sum(array_column($pal['lineas'], 'esperado'))) {
         $db->prepare("UPDATE embarque_pallets SET estado='completo',fin=datetime('now','localtime') WHERE embarque_id=? AND orden=?")->execute([$id, $o]);
         $palCompleto = true; $st = esc_estado($db, $id);
-        if (!array_filter($st['pallets'], fn($x) => $x['estado'] !== 'completo')) {
+        if (!array_filter($st['pallets'], function ($x) { return $x['estado'] !== 'completo'; })) {
           $db->prepare("UPDATE embarques SET estatus='preparado',actualizado=datetime('now','localtime') WHERE id=?")->execute([$id]);
           $db->prepare("INSERT INTO embarque_log(embarque_id,estatus,nota) VALUES(?, 'preparado', 'Todos los pallets completos por escaneo')")->execute([$id]);
           $embCompleto = true; $st = esc_estado($db, $id); }
@@ -365,7 +365,7 @@ try {
       header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="' . $nom . '"');
       echo "\xEF\xBB\xBF"; $o = fopen('php://output', 'w');
       $cab = $rows ? array_keys($rows[0]) : ['sin_datos']; fputcsv($o, $cab);
-      foreach ($rows as $r) fputcsv($o, array_map(fn($v) => is_string($v) ? str_replace(["\r", "\n"], ' ', $v) : $v, array_values($r)));
+      foreach ($rows as $r) fputcsv($o, array_map(function ($v) { return is_string($v) ? str_replace(["\r", "\n"], ' ', $v) : $v; }, array_values($r)));
       fclose($o); exit;
 
     case 'historial': // bitácora de un embarque: escaneos (con rechazos), saltos y cambios de estatus
