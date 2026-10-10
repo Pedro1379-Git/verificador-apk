@@ -36,7 +36,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--az);margin:6px 0}
 .hoja{width:265mm;height:201mm;overflow:hidden;background:#fff;color:#000;font-family:Calibri,'Segoe UI',Arial,sans-serif;position:relative;page-break-after:always;break-after:page}
 .hoja .in{width:265mm;transform-origin:0 0}
 .hoja *{box-sizing:border-box}
-.bn{display:grid;grid-template-columns:58mm 36mm 50mm 22mm 44mm 29mm 26mm;height:27mm;margin-bottom:1.5mm;border:.3mm solid #000}
+.bn{display:grid;grid-template-columns:52mm 34mm 66mm 20mm 38mm 29mm 26mm;height:27mm;margin-bottom:1.5mm;border:.3mm solid #000}
 .bn>div{padding:1mm 2.5mm;display:flex;flex-direction:column;justify-content:center;border-left:.4mm solid #fff;min-width:0}
 .bn .l{font-size:7pt;font-weight:700;letter-spacing:.2pt;margin-bottom:.5mm}
 .bn .b{font-weight:800;line-height:1}
@@ -2588,12 +2588,12 @@ function hojaHTML(e){
   const first=new Set();let k=0;grp.forEach(g=>{first.add(k);k+=g.n});
   const sp=i=>first.has(i)&&i>0?' sep':'';
   const wC=[15,25,13],wT=[14,14,17],pw=(265-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
-  const fecha=e.salida.slice(8,10)+'/'+e.salida.slice(5,7)+'/'+e.salida.slice(0,4),hh=e.salida.slice(11,16);
+  const fecha=e.salida.slice(8,10)+'/'+e.salida.slice(5,7)+'/'+e.salida.slice(0,4),hh=e.salida.slice(11,16),dsem=['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'][new Date(+e.salida.slice(0,4),+e.salida.slice(5,7)-1,+e.salida.slice(8,10)).getDay()];
   const big=N>12?12:N>8?14:N>6?16:20,sz=N>12?'8pt':N>8?'9pt':'10pt';
   const qty=[totC?`${totC} CAJAS`:'',totR?`${totR} RACKS`:''].filter(Boolean);
   const bn=`<div class="bn"><div class="k"><span class="l">RUTA</span><span class="b" style="font-size:38pt">${esc(e.ruta)}</span></div>
    <div class="d"><span class="l">DOCK</span><span class="b" style="font-size:22pt">${esc(e.dock)}</span></div>
-   <div class="k"><span class="l" style="color:#d9d9d9">SALIDA &nbsp;${fecha}</span><span class="b" style="font-size:38pt">${hh}</span></div>
+   <div class="k"><span class="l" style="color:#d9d9d9;font-size:8pt">SALIDA · ${dsem}</span><span class="b" style="font-size:24pt;margin-bottom:.8mm">${fecha}</span><span class="b" style="font-size:32pt">${hh}</span></div>
    <div class="g"><span class="l">PALLETS</span><span class="b" style="font-size:38pt">${N}</span></div>
    <div class="g"><span class="l">CANTIDAD ESPERADA</span>${qty.map(x=>`<span class="b" style="font-size:${qty.length>1?15:20}pt">${x}</span>`).join('')}</div>
    <div class="g" style="font-size:8pt;font-weight:700"><span>FECHA ____/____/________</span><span style="margin-top:2mm">TURNO ______</span></div>
@@ -2605,7 +2605,7 @@ function hojaHTML(e){
   const r2=`<tr><th class="l" colspan="3">Cód. de paletizado · skids del manifiesto</th>${P.map((p,i)=>`<th class="l${sp(i)}">${esc(p.palcode)}<br><span style="font-weight:400">${p.skids>1?p.skids+' skids':'1 skid'}</span></th>`).join('')}<th class="l" colspan="3"></th></tr>`;
   const r3=`<tr><th class="l">Código</th><th class="l">N.º de parte</th><th class="l">Pzas/caja</th>${P.map((p,i)=>`<th style="background:#7a7a7a;font-size:6pt;font-weight:400" class="${sp(i).trim()}">Cantidad</th>`).join('')}<th class="l">Esperado</th><th class="l">Cargado</th><th class="l">Diferencia</th></tr>`;
   const rowC=c=>{const l=inf[c],R=l.es_rack;
-    return `<tr style="height:${N>12||cs.length>8?7.2:8.8}mm"><td class="c">${esc(c)}${R?'<br><span class="tag">RACKS</span>':''}</td><td class="p">${esc(l.parte)}</td><td class="p">${l.pzas||''}${R?'<br><span style="font-size:5.5pt">pzas/rack</span>':''}</td>`+
+    return `<tr style="height:${N>12||cs.length>11?7.6:cs.length>9?9.5:cs.length>7?11.5:13}mm"><td class="c">${esc(c)}${R?'<br><span class="tag">RACKS</span>':''}</td><td class="p">${esc(l.parte)}</td><td class="p">${l.pzas||''}${R?'<br><span style="font-size:5.5pt">pzas/rack</span>':''}</td>`+
       P.map((p,i)=>{const x=cel[p.orden+'|'+c];return x?`<td class="v${R?' rk':''}${sp(i)}" style="font-size:${sz==='8pt'?'12pt':'15pt'}">${x.esperado}</td>`:`<td class="na${sp(i)}"></td>`}).join('')+
       `<td class="t" style="font-size:12pt">${L.filter(z=>z.codigo===c).reduce((a,z)=>a+n0(z.esperado),0)}</td><td></td><td></td></tr>`};
   const tot=(cod,nom,uni,dark,t)=>{const hr=nom==='RACKS'?'lr':'lb';
@@ -2613,8 +2613,8 @@ function hojaHTML(e){
     const e2=`<tr style="height:7mm"><td class="${hr}" colspan="3">${nom} CONTADOS <small>anota la cantidad real</small></td>${P.map((p,i)=>sum(cod,p.orden)?`<td class="${sp(i).trim()}"></td>`:`<td class="na${sp(i)}"></td>`).join('')}<td colspan="3"></td></tr>`;
     return e1+e2};
   const inc=`<tr style="height:7.5mm"><td class="lb" colspan="3">INCIDENCIA N.º <small>solo si hay diferencia</small></td>${P.map((p,i)=>`<td class="${sp(i).trim()}"></td>`).join('')}<td colspan="3"></td></tr>`;
-  const tabla=`<table class="m">${colg}<thead>${r0}${r1}${rm}${r2}${r3}</thead><tbody>${cs.map(rowC).join('')}${csC.length?tot(csC,'CAJAS','',0,totC):''}${csR.length?tot(csR,'RACKS','',1,totR):''}${inc}</tbody></table>`;
-  const nota='Cada columna es un pallet y corresponde a una orden (se identifica por sus últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Una casilla rayada indica que esa parte no va en ese pallet. '+(csR.length?'El fondo gris y la etiqueta RACKS indican que esas partes se envían en racks, no en cajas. ':'')+'Si lo contado no coincide con lo esperado, anota el número de incidencia en el pallet y descríbela en la tabla de abajo.';
+  const tabla=`<table class="m">${colg}<thead>${r0}${r1}${rm}${r2}${r3}</thead><tbody>${cs.map(rowC).join('')}</tbody></table>`;
+  const nota='Cada columna es un pallet y corresponde a una orden (se identifica por sus últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Una casilla rayada indica que esa parte no va en ese pallet. '+(csR.length?'El fondo gris y la etiqueta RACKS indican que esas partes se envían en racks, no en cajas. ':'')+'Si lo contado no coincide con lo esperado, anótalo en la tabla de incidencias de abajo, indicando el pallet y el código.';
   const ctl=`<table><tr><th>CONTROLES DE RUTA</th></tr>
    <tr><td class="h">Pallets físicos contados: ______ de <b>${N}</b> &nbsp; ${totC?`Cajas contadas: ______ de ${totC} &nbsp; `:''}${totR?`Racks contados: ______ de ${totR}`:''}</td></tr>
    <tr><td class="h">Ruta y dock coinciden con la hoja de embarque y el destino del camión ☐ Sí &nbsp; <b>Transporte / placas:</b> ____________</td></tr>

@@ -2728,12 +2728,13 @@ function dibujar(D){
   T('AUDITADO POR ESCANEO · '+e.id,X0+W,y+3,{size:6.5,color:64,align:'right'});
   y=11.5;
   // ---- banner
-  const bw=[58,36,50,22,44,29,26].map(v=>v*W/265),bh=24;let bx=X0;
+  const bw=[52,34,66,20,38,29,26].map(v=>v*W/265),bh=24;let bx=X0;
   const cell=(i,f)=>{const x=bx;R(x,y,bw[i],bh,f,0,.3);bx+=bw[i];return x};
   let x=cell(0,0);T('RUTA',x+2.5,y+4,{size:6.5,bold:true,color:255});T(e.ruta,x+2.5,y+18,{size:34,bold:true,color:255,maxw:bw[0]-5});
   x=cell(1,122);T('DOCK',x+2.5,y+4,{size:6.5,bold:true,color:255});T(e.dock,x+2.5,y+16,{size:20,bold:true,color:255,maxw:bw[1]-5});
   const fs=e.salida.slice(8,10)+'/'+e.salida.slice(5,7)+'/'+e.salida.slice(0,4);
-  x=cell(2,0);T('SALIDA  '+fs,x+2.5,y+4,{size:6.5,bold:true,color:215});T(e.salida.slice(11,16),x+2.5,y+18,{size:32,bold:true,color:255});
+  const dsem=['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'][new Date(+e.salida.slice(0,4),+e.salida.slice(5,7)-1,+e.salida.slice(8,10)).getDay()];
+  x=cell(2,0);T('SALIDA · '+dsem,x+2.5,y+3.8,{size:7,bold:true,color:215});T(fs,x+2.5,y+11.6,{size:22,bold:true,color:255});T(e.salida.slice(11,16),x+2.5,y+21.6,{size:26,bold:true,color:255});
   x=cell(3,248);T('PALLETS',x+2.5,y+4,{size:6.5,bold:true});T(String(N),x+2.5,y+18,{size:32,bold:true});
   x=cell(4,248);T('CANTIDAD ESPERADA',x+2.5,y+4,{size:6.5,bold:true});
   const q=[eC?eC+' CAJAS':'',eR?eR+' RACKS':''].filter(Boolean);q.forEach((s,i)=>T(s,x+2.5,y+(q.length>1?12+i*7.5:15),{size:q.length>1?14:18,bold:true}));
