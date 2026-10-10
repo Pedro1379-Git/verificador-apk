@@ -10245,7 +10245,7 @@ function render(){
   if(done){$('vAct').hidden=true;$('hint').textContent='Embarque preparado. Escanea otro Dock Audit para continuar.'}
   $('bSkip').textContent=ab?'Saltar este pallet…':'Saltar pallet '+(sig?sig.sufijo:'')+'…';
   $('vRec').hidden=!ST.recientes.length;
-  $('rec').innerHTML=ST.recientes.map(r=>`<li class="${r.resultado==='OK'||r.resultado==='ANULADA'?r.resultado:'mal'}">${r.hora} · ${esc(r.orden.slice(8))} · ${esc(r.parte||'?')} · ${r.resultado}${r.aviso?' ⚠':''}</li>`).join('');
+  $('rec').innerHTML=ST.recientes.map(r=>`<li class="${r.resultado==='OK'||r.resultado==='ANULADA'?r.resultado:'mal'}">${r.hora} · ${esc(suf(r.orden))} · ${esc(r.parte||'?')} · ${r.resultado}${r.aviso?' ⚠':''}</li>`).join('');
   const c=document.querySelector('.chip.en_proceso,.chip.siguiente');if(c&&c.parentNode.scrollTo)c.parentNode.scrollTo({left:c.offsetLeft-c.parentNode.clientWidth/2+c.clientWidth/2});
   if(!done)$('scan').focus();if(!/show|ok|bad|warn|dock|man/.test($('msg').className.replace('idle','')))idle()}
 
@@ -10275,15 +10275,16 @@ function mostrarFin(){const e=ST.embarque,P=ST.pallets;beep('ok');
 // ---- lectura de códigos ----
 function parseLabel(t){const m=String(t).trim().match(/^(\S+?)\s{2,}(\d+)\s+(\S+)\s+(\d+)$/);if(!m)return null;
   const p=m[1].match(/[0-9A-Z]{5}-[0-9A-Z]{5}-\d{2}/);return {parte:p?p[0]:m[1],piezas:+m[2],qr:String(t).trim().replace(/\s+/g,' ')}}
-function parseManifest(t){const m=String(t).match(/20\d{8}/);return m?{orden:m[0]}:null}
+function parseManifest(t){t=String(t);if(typeof ST!=='undefined'&&ST){const u=t.toUpperCase(),p=ST.pallets.find(p=>u.includes(p.orden));if(p)return {orden:p.orden}}const m=t.match(/20\d{8}/);return m?{orden:m[0]}:null}
+function suf(o){const p=(ST&&ST.pallets||[]).find(p=>p.orden===o);return p&&p.sufijo?p.sufijo:String(o).slice(8)}
 async function onScan(t){
   t=String(t).trim();if(!t||busy)return;busy=true;
   try{
-    if(/^DA[A-Z]{4}\d{2}/i.test(t)){
+    if(/^DA[A-Z0-9]{5,24}\d{12}$/i.test(t)){
       const nid=t.toUpperCase().slice(2);
       if(ST&&nid!==ST.embarque.id&&ST.embarque.estatus!=='preparado'){
         const tc=ST.pallets.filter(p=>p.estado==='completo').length;
-        const si=await confirmar('Escaneaste otro Dock Audit',`Estás trabajando en <b>${esc(ST.embarque.ruta)} ${esc(ST.embarque.dock)}</b> (${tc} de ${ST.pallets.length} pallets completos).<br>El código leído es de <b>${esc(nid.slice(0,6))} ${esc(nid.slice(6,11))}</b>.<br><br>Tu avance queda guardado y podrás volver escaneando su Dock Audit.`,'Cambiar al nuevo Dock Audit','Continuar con el actual');
+        const si=await confirmar('Escaneaste otro Dock Audit',`Estás trabajando en <b>${esc(ST.embarque.ruta)} ${esc(ST.embarque.dock)}</b> (${tc} de ${ST.pallets.length} pallets completos).<br>El código leído es de <b>${esc(nid.slice(0,-12))}</b>.<br><br>Tu avance queda guardado y podrás volver escaneando su Dock Audit.`,'Cambiar al nuevo Dock Audit','Continuar con el actual');
         if(!si){msg(`Continúas en ${ST.embarque.ruta} ${ST.embarque.dock}`,'warn');return}}
       ST=await api('esc_abrir',{qr:t});sv('emb',ST.embarque.id);render();msg(`Dock Audit ${ST.embarque.ruta} ${ST.embarque.dock}`,'dock');return}
     if(!ST)return msg('Primero escanea el QR del Dock Audit.','bad');
@@ -10310,11 +10311,11 @@ async function onScan(t){
         ST=await api('esc_saltar',{id:ST.embarque.id,orden:ab.orden,razon:razonPrevia})}
       try{ST=await api('esc_manifiesto',body)}catch(e){
         if(e.data&&e.data.requiere_razon){
-          const z=razonPrevia||await pedirRazon('Fuera de secuencia',`Toca el pallet <b>${esc(e.data.esperado)}</b>. Para empezar el <b>${esc(m.orden.slice(8))}</b> debes saltar: <b>${e.data.saltar.map(esc).join(', ')}</b>. Indica la razón:`,'Saltar y continuar');
+          const z=razonPrevia||await pedirRazon('Fuera de secuencia',`Toca el pallet <b>${esc(e.data.esperado)}</b>. Para empezar el <b>${esc(suf(m.orden))}</b> debes saltar: <b>${e.data.saltar.map(esc).join(', ')}</b>. Indica la razón:`,'Saltar y continuar');
           if(!z){render();return msg('Salto cancelado. Escanea el manifiesto del pallet '+e.data.esperado+'.','warn')}
           ST=await api('esc_manifiesto',{...body,razon:z});
         }else{if(razonPrevia)render();throw e}}
-      render();msg(`Pallet ${m.orden.slice(8)} abierto. Escanea sus etiquetas.`,'man');return}
+      render();msg(`Pallet ${suf(m.orden)} abierto. Escanea sus etiquetas.`,'man');return}
     msg('✖ Código no reconocido.','bad');
   }catch(e){msg(e.message,'bad');if(ST&&e.data&&e.data.abierto)render()}
   finally{busy=false}}

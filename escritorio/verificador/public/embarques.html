@@ -112,22 +112,23 @@ function _iso(s){const m=String(s).match(/(\d\d)\/(\d\d)\/(\d{4})\s+(\d\d:\d\d)/
 function parseMan(it){
   const S=it.map(i=>i.s);if(!S.includes('SKID.I.D'))return null;
   const J=S.join(' '),dock=(J.match(/\b(TMM[A-Z]{2})\b/)||[])[1];
-  const R=_after(S,'S/R'),ruta=/^[A-Z]{4}\d{2}$/.test(R)?R:(J.match(/\b([A-Z]{4}\d{2})\b/)||[])[1],orden=S.find(s=>/^20\d{8}$/.test(s)),skid=S.find(s=>/^\d{3}[A-Z]$/.test(s));
+  const R=_after(S,'S/R'),RUTA_NO=['Shuttle','M/R','C/D','NO','URGENT','Skid','Supplier','Dock'],ruta=(/^[A-Z][A-Z0-9]{2,11}$/.test(R)&&!RUTA_NO.includes(R)&&!/^TMM[A-Z]{2}$/.test(R))?R:(J.match(/\b([A-Z]{4}\d{2})\b/)||[])[1],
+    oh=it.find(i=>i.s==='Order Number'),orden=S.find(s=>/^20\d{8}$/.test(s))||(oh?(it.filter(i=>/^[0-9A-Z]{8,10}$/.test(i.s)&&i.y<oh.y&&i.y>oh.y-60&&i.x<110).sort((a,b)=>b.y-a.y)[0]||{}).s:undefined),skid=S.find(s=>/^\d{3}[A-Z]$/.test(s));
   if(!dock||!ruta||!orden||!skid)return null;
   const sk=it.find(i=>i.s===skid),loads=it.filter(i=>/^Load: /.test(i.s)).sort((a,b)=>b.y-a.y);
   const serie=it.find(i=>/^[A-Z]{2}$/.test(i.s)&&i.y>600);
   return {dock,ruta,salida:loads.length?_iso(loads[0].s):'',orden,pallet:+skid.slice(0,3),copia:skid[3],serie:serie?serie.s:'',
-    palcode:S.find(s=>/^[A-Z]\d$/.test(s))||'',mros:_after(S,'MROS'),
+    palcode:S.find(s=>/^[A-Z]\d$/.test(s))||'',mros:(()=>{const mh=it.find(i=>i.s==='MROS');if(!mh)return '';const v=it.find(i=>i.s!=='MROS'&&/^\d{1,4}$/.test(i.s)&&i.y<mh.y&&i.y>mh.y-25&&i.x>mh.x-10&&i.x<mh.x+60);return v?v.s:''})(),
     codigos:it.filter(i=>i.y<sk.y&&i.s!==skid&&/^[A-Z][A-Z0-9]{3}$/.test(i.s)).sort((a,b)=>b.y-a.y).map(i=>i.s)};
 }
 function parseKan(it){
-  const S=it.map(i=>i.s),J=S.join(' '),lab=it.find(i=>i.s==='BOXES of TOTAL'),orden=S.find(s=>/^20\d{8}$/.test(s));
+  const S=it.map(i=>i.s),J=S.join(' '),lab=it.find(i=>i.s==='BOXES of TOTAL'),oh=it.find(i=>i.s==='DELIVERY ORDER NUMBER'),orden=S.find(s=>/^20\d{8}$/.test(s))||(oh?(it.filter(i=>/^[0-9A-Z]{8,10}$/.test(i.s)&&i.y>oh.y&&i.y<oh.y+30&&i.x<130).sort((a,b)=>a.y-b.y)[0]||{}).s:undefined);
   if(!lab||!orden)return null;
   const n=it.filter(i=>/^\d{1,3}$/.test(i.s)&&i.y>lab.y&&i.y<lab.y+20).sort((a,b)=>a.x-b.x);
   const code=it.filter(i=>/^[A-Z][A-Z0-9]{3}$/.test(i.s)&&i.y>200).sort((a,b)=>b.y-a.y)[0];
   const parte=S.find(s=>/^[0-9A-Z]{5}-[0-9A-Z]{5}-\d{2}$/.test(s));
   if(!code||!parte||n.length<2)return null;
-  return {dock:(J.match(/\b(TMM[A-Z]{2}) KANBAN/)||[])[1]||'',orden,codigo:code.s,parte,descripcion:_after(S,'DESCRIPTION'),
+  return {dock:(J.match(/\b(TMM[A-Z]{2}) KANBAN/)||[])[1]||'',orden,codigo:code.s,parte,descripcion:(()=>{const dh=it.find(i=>i.s==='DESCRIPTION');if(!dh)return '';const v=it.filter(i=>i.y>dh.y&&i.y<dh.y+16&&i.x<dh.x+30&&/[A-Z]{3}/.test(i.s)&&i.s!=='DESCRIPTION').sort((a,b)=>a.y-b.y)[0];return v?v.s:''})(),
     cajas:+n[n.length-1].s,pzas:+_after(S,'QTY / BOX')||0};
 }
 function mergeMan(list){const m={};for(const r of list){const k=[r.dock,r.ruta,r.salida,r.orden,r.pallet,[...r.codigos].sort().join(',')].join('|');
@@ -2467,16 +2468,16 @@ const RK=new Set(['71309-AK020-00','71309-AK030-00']);
 
 // ORDER: una página por serie; columnas = consecutivo de la orden, filas = código de parte, celda = cajas (o racks)
 function parseOrder(it,O){
-  const ser=(it.find(t=>/^20\d{6}$/.test(t.s)&&t.y>460&&t.y<480)||{}).s,hy=(it.find(t=>t.s==='Order Number')||{}).y;
+  const ser=(it.find(t=>/^20\d{6}$/.test(t.s)&&t.y>460&&t.y<480)||it.find(t=>/^[0-9A-Z]{8}$/.test(t.s)&&t.y>460&&t.y<480&&t.x<150)||{}).s,hy=(it.find(t=>t.s==='Order Number')||{}).y;
   if(!ser||hy==null)return false;
-  const cols=it.filter(t=>/^\d{3}$/.test(t.s)&&Math.abs(t.y-hy+1)<6&&t.x>230).map(t=>({n:t.s,x:t.x}));
+  const cols=it.filter(t=>/^\d{3,4}$/.test(t.s)&&Math.abs(t.y-hy+1)<6&&t.x>230).map(t=>({n:t.s,x:t.x}));
   const ys=[...new Set(it.filter(t=>/^[0-9A-Z]{5}-[0-9A-Z]{5}-\d{2}$/.test(t.s)&&t.x<60).map(t=>t.y))];
   for(const y of ys){const row=it.filter(t=>Math.abs(t.y-y)<3);
     const parte=row.find(t=>/^[0-9A-Z]{5}-/.test(t.s)&&t.x<60).s,code=(row.find(t=>/^[A-Z][A-Z0-9]{3}$/.test(t.s)&&t.x>205&&t.x<235)||{}).s,lot=row.find(t=>/^000\d\d$/.test(t.s));
-    if(!code)continue;O.info[code]={parte,pzas:lot?+lot.s:0};
+    if(!code)continue;const dsc=(row.find(t=>t.x>80&&t.x<185&&/[A-Z]{3}/.test(t.s)&&!/^[0-9A-Z]{5}-/.test(t.s))||{}).s||'';O.info[code]={parte,pzas:lot?+lot.s:0,descripcion:dsc};
     row.filter(t=>/^\d{1,3}$/.test(t.s)&&t.x>235&&t.x<735).forEach(v=>{let best=null,bd=1e9;
       cols.forEach(c=>{const d=Math.abs(v.x-(c.x+5));if(d<bd){bd=d;best=c}});
-      if(best&&bd<16){const k=ser+best.n.slice(1)+'|'+code;O.cajas[k]=(O.cajas[k]||0)+ +v.s}})}
+      if(best&&bd<16){const k=(best.n.length===4?(best.n==='0000'?ser:ser+best.n.slice(2)):ser+best.n.slice(1))+'|'+code;O.cajas[k]=(O.cajas[k]||0)+ +v.s}})}
   return true}
 
 let D={man:[],kan:[],order:{cajas:{},info:{}}};
@@ -2587,7 +2588,7 @@ function hojaHTML(e){
   const grp=[];P.forEach(p=>{const g=grp[grp.length-1];if(g&&g.s===p.serie)g.n++;else grp.push({s:p.serie,n:1})});
   const first=new Set();let k=0;grp.forEach(g=>{first.add(k);k+=g.n});
   const sp=i=>first.has(i)&&i>0?' sep':'';
-  const wC=[15,25,13],wT=[14,14,17],pw=(265-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
+  const wC=[15,34,13],wT=[14,14,17],pw=(265-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
   const fecha=e.salida.slice(8,10)+'/'+e.salida.slice(5,7)+'/'+e.salida.slice(0,4),hh=e.salida.slice(11,16),dsem=['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'][new Date(+e.salida.slice(0,4),+e.salida.slice(5,7)-1,+e.salida.slice(8,10)).getDay()];
   const big=N>12?12:N>8?14:N>6?16:20,sz=N>12?'8pt':N>8?'9pt':'10pt';
   const qty=[totC?`${totC} CAJAS`:'',totR?`${totR} RACKS`:''].filter(Boolean);
@@ -2599,13 +2600,13 @@ function hojaHTML(e){
    <div class="g" style="font-size:8pt;font-weight:700"><span>FECHA ____/____/________</span><span style="margin-top:2mm">TURNO ______</span></div>
    <div class="qr">${qrSvg('DA'+e.id)}</div></div>`;
   const colg=`<colgroup>${[...wC,...Array(N).fill(pw),...wT].map(w=>`<col style="width:${w}mm">`).join('')}</colgroup>`;
-  const r0=`<tr><th colspan="3" style="font-size:7pt">Serie de la orden (8 dígitos)</th>${grp.map((g,i)=>`<th class="s sep" colspan="${g.n}" style="font-size:9pt">${esc(g.s)}</th>`).join('')}<th colspan="3" style="font-size:7pt">TOTAL ESPERADO</th></tr>`;
+  const r0=`<tr><th colspan="3" style="font-size:7pt">Serie de la orden (8 dígitos)</th>${grp.map((g,i)=>`<th class="s sep" colspan="${g.n}" style="font-size:14pt;letter-spacing:.6pt">${esc(g.s)}</th>`).join('')}<th colspan="3" style="font-size:7pt">TOTAL ESPERADO</th></tr>`;
   const r1=`<tr><th colspan="3" style="font-size:7pt">Pallet = últimos 2 dígitos de la orden</th>${P.map((p,i)=>`<th class="${sp(i).trim()}" style="font-size:${big}pt">${esc(p.sufijo)}</th>`).join('')}<th colspan="3" style="font-size:7pt">(${totC&&totR?'cajas / racks':totR?'racks':'cajas'})</th></tr>`;
   const rm=`<tr><th class="l" colspan="3">MROS del manifiesto</th>${P.map((p,i)=>`<th class="l${sp(i)}" style="font-size:${N>8?5:6.5}pt;word-break:break-all">${esc(p.mros||'')}</th>`).join('')}<th class="l" colspan="3"></th></tr>`;
   const r2=`<tr><th class="l" colspan="3">Cód. de paletizado · skids del manifiesto</th>${P.map((p,i)=>`<th class="l${sp(i)}">${esc(p.palcode)}<br><span style="font-weight:400">${p.skids>1?p.skids+' skids':'1 skid'}</span></th>`).join('')}<th class="l" colspan="3"></th></tr>`;
   const r3=`<tr><th class="l">Código</th><th class="l">N.º de parte</th><th class="l">Pzas/caja</th>${P.map((p,i)=>`<th style="background:#7a7a7a;font-size:6pt;font-weight:400" class="${sp(i).trim()}">Cantidad</th>`).join('')}<th class="l">Esperado</th><th class="l">Cargado</th><th class="l">Diferencia</th></tr>`;
   const rowC=c=>{const l=inf[c],R=l.es_rack;
-    return `<tr style="height:${N>12||cs.length>11?7.6:cs.length>9?9.5:cs.length>7?11.5:13}mm"><td class="c">${esc(c)}${R?'<br><span class="tag">RACKS</span>':''}</td><td class="p">${esc(l.parte)}</td><td class="p">${l.pzas||''}${R?'<br><span style="font-size:5.5pt">pzas/rack</span>':''}</td>`+
+    return `<tr style="height:${N>12||cs.length>11?7.6:cs.length>9?9.5:cs.length>7?11.5:13}mm"><td class="c">${esc(c)}${R?'<br><span class="tag">RACKS</span>':''}</td><td class="p">${esc(l.parte)}${l.descripcion?`<br><span style="font-size:5.6pt;color:#333;line-height:1.1;display:block">${esc(l.descripcion)}</span>`:''}</td><td class="p">${l.pzas||''}${R?'<br><span style="font-size:5.5pt">pzas/rack</span>':''}</td>`+
       P.map((p,i)=>{const x=cel[p.orden+'|'+c];return x?`<td class="v${R?' rk':''}${sp(i)}" style="font-size:${sz==='8pt'?'12pt':'15pt'}">${x.esperado}</td>`:`<td class="na${sp(i)}"></td>`}).join('')+
       `<td class="t" style="font-size:12pt">${L.filter(z=>z.codigo===c).reduce((a,z)=>a+n0(z.esperado),0)}</td><td></td><td></td></tr>`};
   const tot=(cod,nom,uni,dark,t)=>{const hr=nom==='RACKS'?'lr':'lb';

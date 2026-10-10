@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS plan_kanban(dock TEXT,orden TEXT,codigo TEXT,parte TE
 $cols = array_column($db->query("PRAGMA table_info(embarque_pallets)")->fetchAll(PDO::FETCH_ASSOC), 'name');
 foreach (['estado' => "TEXT NOT NULL DEFAULT 'pendiente'", 'razon' => 'TEXT', 'inicio' => 'TEXT', 'fin' => 'TEXT', 'manifiestos' => 'TEXT', 'mros' => 'TEXT'] as $c => $t)
   if (!in_array($c, $cols)) $db->exec("ALTER TABLE embarque_pallets ADD COLUMN $c $t");
+foreach (['plan_orden', 'embarque_lineas'] as $t) { $cc = array_column($db->query("PRAGMA table_info($t)")->fetchAll(PDO::FETCH_ASSOC), 'name'); if (!in_array('descripcion', $cc)) $db->exec("ALTER TABLE $t ADD COLUMN descripcion TEXT"); }
 $db->exec("CREATE TABLE IF NOT EXISTS embarque_escaneos(id INTEGER PRIMARY KEY AUTOINCREMENT,embarque_id TEXT,orden TEXT,qr TEXT,parte TEXT,codigo TEXT,piezas INTEGER,resultado TEXT,aviso TEXT,hora TEXT DEFAULT (datetime('now','localtime')));
 CREATE INDEX IF NOT EXISTS ix_ee_qr ON embarque_escaneos(qr);
 CREATE TABLE IF NOT EXISTS embarque_saltos(id INTEGER PRIMARY KEY AUTOINCREMENT,embarque_id TEXT,orden TEXT,razon TEXT,hora TEXT DEFAULT (datetime('now','localtime')));");
@@ -167,10 +168,10 @@ try {
       $k = $db->prepare('INSERT OR REPLACE INTO plan_kanban VALUES(?,?,?,?,?,?,?)');
       foreach (($in['kan'] ?? []) as $r)
         $k->execute([$r['dock'], $r['orden'], $r['codigo'], $r['parte'], $r['descripcion'] ?? '', (int)$r['cajas'], (int)$r['pzas']]);
-      $o = $db->prepare('INSERT OR REPLACE INTO plan_orden VALUES(?,?,?,?,?)');
+      $o = $db->prepare('INSERT OR REPLACE INTO plan_orden(orden,codigo,parte,pzas,cajas,descripcion) VALUES(?,?,?,?,?,?)');
       foreach (($in['order']['cajas'] ?? []) as $k => $n) { [$ord, $cod] = explode('|', $k);
         $inf = $in['order']['info'][$cod] ?? [];
-        $o->execute([$ord, $cod, $inf['parte'] ?? '', (int)($inf['pzas'] ?? 0), (int)$n]); }
+        $o->execute([$ord, $cod, $inf['parte'] ?? '', (int)($inf['pzas'] ?? 0), (int)$n, trim((string)($inf['descripcion'] ?? ''))]); }
       $db->commit();
       out(200, ['pallets' => (int)$db->query('SELECT COUNT(*) FROM plan_pallets')->fetchColumn(), 'kanban' => (int)$db->query('SELECT COUNT(*) FROM plan_kanban')->fetchColumn()]);
 
@@ -203,19 +204,20 @@ try {
           if (trim((string)$r['mros']) !== '') $o['mr'][trim($r['mros'])] = 1; if ($r['palcode'] !== '') $o['pc'][$r['palcode']] = 1; $o['sk'][$r['pallet']] = 1; unset($o);
         }
         $falta = []; $lin = [];
-        $q = $db->prepare('SELECT codigo, parte, pzas, cajas FROM plan_orden WHERE orden=?');
-        $kq = $db->prepare('SELECT cajas FROM plan_kanban WHERE dock=? AND orden=? AND codigo=?');
+        $q = $db->prepare('SELECT codigo, parte, pzas, cajas, descripcion FROM plan_orden WHERE orden=?');
+        $kq = $db->prepare('SELECT cajas, descripcion FROM plan_kanban WHERE dock=? AND orden=? AND codigo=?');
         foreach ($por as $ord => $_) {
           $q->execute([$ord]); $rows = $q->fetchAll(PDO::FETCH_ASSOC);
           if (!$rows) { $falta[] = $ord; continue; }
-          foreach ($rows as $r) { if (!isset($por[$ord]['cod'][$r['codigo']])) continue; /* la ORDER lista códigos que viajan en otro embarque */ $kq->execute([$e['dock'], $ord, $r['codigo']]); $k = $kq->fetchColumn();
-            $lin[] = [$ord, $r['codigo'], $r['parte'], (int)$r['pzas'], in_array($r['parte'], $RK) ? 1 : 0, (int)$r['cajas'], $k === false ? null : (int)$k]; }
+          foreach ($rows as $r) { if (!isset($por[$ord]['cod'][$r['codigo']])) continue; /* la ORDER lista códigos que viajan en otro embarque */ $kq->execute([$e['dock'], $ord, $r['codigo']]); $kr = $kq->fetch(PDO::FETCH_ASSOC); $k = $kr ? $kr['cajas'] : false; $ds = trim((string)(($kr && trim((string)$kr['descripcion']) !== '') ? $kr['descripcion'] : $r['descripcion']));
+            $lin[] = [$ord, $r['codigo'], $r['parte'], (int)$r['pzas'], in_array($r['parte'], $RK) ? 1 : 0, (int)$r['cajas'], $k === false ? null : (int)$k, $ds]; }
         }
         if ($falta) { $rechazados[] = ['id' => $id, 'motivo' => 'Falta la ORDER de: ' . implode(', ', $falta)]; continue; }
         $existe->execute([$id]); $est = $existe->fetchColumn();
         if ($est !== false && $est !== 'creado') { // ya en proceso: no se toca, solo se actualiza la comparación con KAN
           $db->prepare('UPDATE embarque_lineas SET kan=(SELECT cajas FROM plan_kanban k WHERE k.dock=? AND k.orden=embarque_lineas.orden AND k.codigo=embarque_lineas.codigo) WHERE embarque_id=?')->execute([$e['dock'], $id]);
           $um = $db->prepare('UPDATE embarque_pallets SET mros=? WHERE embarque_id=? AND orden=?'); foreach ($por as $ord => $o) $um->execute([implode(' / ', array_keys($o['mr'])), $id, $ord]);
+          $ud = $db->prepare('UPDATE embarque_lineas SET descripcion=? WHERE embarque_id=? AND orden=? AND codigo=?'); foreach ($lin as $l) $ud->execute([$l[7], $id, $l[0], $l[1]]);
           $omitidos[] = $id; continue; }
         $db->beginTransaction();
         $db->prepare('DELETE FROM embarque_pallets WHERE embarque_id=?')->execute([$id]);
@@ -225,10 +227,10 @@ try {
           ON CONFLICT(id) DO UPDATE SET pallets=excluded.pallets,cajas=excluded.cajas,racks=excluded.racks,actualizado=datetime('now','localtime')")
           ->execute([$id, $e['ruta'], $e['dock'], $e['salida'], count($por), $nc, $nr]);
         $ip = $db->prepare('INSERT INTO embarque_pallets(embarque_id,orden,serie,sufijo,palcode,skids) VALUES(?,?,?,?,?,?)');
-        foreach ($por as $ord => $o) $ip->execute([$id, $ord, $o['serie'], $o['sufijo'], implode('/', array_keys($o['pc'])), count($o['sk'])]);
+        foreach ($por as $ord => $o) $ip->execute([$id, $ord, $o['serie'], $o['sufijo'] !== '' ? $o['sufijo'] : str_pad((string)min(array_keys($o['sk'])), 2, '0', STR_PAD_LEFT), implode('/', array_keys($o['pc'])), count($o['sk'])]);
         $um = $db->prepare('UPDATE embarque_pallets SET mros=? WHERE embarque_id=? AND orden=?'); foreach ($por as $ord => $o) $um->execute([implode(' / ', array_keys($o['mr'])), $id, $ord]);
-        $il = $db->prepare('INSERT INTO embarque_lineas VALUES(?,?,?,?,?,?,?,?)');
-        foreach ($lin as $l) $il->execute([$id, $l[0], $l[1], $l[2], $l[3], $l[4], $l[5], $l[6]]);
+        $il = $db->prepare('INSERT INTO embarque_lineas(embarque_id,orden,codigo,parte,pzas,es_rack,esperado,kan,descripcion) VALUES(?,?,?,?,?,?,?,?,?)');
+        foreach ($lin as $l) $il->execute([$id, $l[0], $l[1], $l[2], $l[3], $l[4], $l[5], $l[6], $l[7]]);
         if ($est === false) $db->prepare("INSERT INTO embarque_log(embarque_id,estatus,nota) VALUES(?, 'creado', 'Creado desde MAN + ORDER')")->execute([$id]);
         $db->commit();
         if ($est === false) $creados[] = $id; else $actualizados[] = $id;
@@ -268,7 +270,7 @@ try {
     // ====== Escaneo (Módulo C) ======
     case 'esc_abrir': // QR del Dock Audit: "DA" + ID del embarque
       $t = strtoupper(trim((string)($in['qr'] ?? '')));
-      if (!preg_match('/^DA([A-Z]{4}\d{2}[A-Z]{3,5}\d{12})$/', $t, $m)) out(400, ['error' => 'Ese código no es el QR de un Dock Audit.']);
+      if (!preg_match('/^DA([A-Z0-9]{5,24}\d{12})$/', $t, $m)) out(400, ['error' => 'Ese código no es el QR de un Dock Audit.']);
       $s = $db->prepare('SELECT estatus FROM embarques WHERE id=?'); $s->execute([$m[1]]); $est = $s->fetchColumn();
       if ($est === false) out(404, ['error' => 'El embarque ' . $m[1] . ' no existe en la base. Crea los embarques primero.']);
       if ($est === 'creado') { $db->prepare("UPDATE embarques SET estatus='en_verificacion',actualizado=datetime('now','localtime') WHERE id=?")->execute([$m[1]]);

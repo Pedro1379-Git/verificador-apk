@@ -2746,12 +2746,12 @@ function dibujar(D){
   for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(qrm.isDark(i,j))d.rect(x+1.5+j*k,y+(bh-side)/2+i*k,k+.02,k+.02,'F');
   y+=bh+2;
   // ---- matriz
-  const wC=[15,25,13],wT=[14,14,17],pw=(W-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
+  const wC=[15,34,13],wT=[14,14,17],pw=(W-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
   const colX=[X0];[...wC,...Array(N).fill(pw),...wT].forEach(w=>colX.push(colX[colX.length-1]+w));
   const px=i=>colX[3+i],tx=colX[3+N];
   const grp=[];P.forEach(p=>{const gp=grp[grp.length-1];if(gp&&gp.s===p.serie)gp.n++;else grp.push({s:p.serie,n:1})});
   const firstIdx=new Set();{let c=0;grp.forEach(gp=>{firstIdx.add(c);c+=gp.n})}
-  const H0=5,H1=7,H_M=4.2,H2=7,H3=4.5,hTot=6.3,hInc=7.5;
+  const H0=7,H1=7,H_M=4.2,H2=7,H3=4.5,hTot=6.3,hInc=7.5;
   const nTotRows=(csC.length?2:0)+(csR.length?2:0);
   const avail=215.9-7-(y)-(H0+H1+H_M+H2+H3)-nTotRows*hTot-hInc-54;
   const rh=Math.max(5.2,Math.min(9.5,avail/Math.max(1,cs.length)));
@@ -2759,7 +2759,7 @@ function dibujar(D){
   const hd=(x,y,w,h,txt,o={})=>{R(x,y,w,h,o.f==null?64:o.f,89,lw);T(txt,x+w/2,y+h/2,{size:o.size||7,bold:o.bold!==false,color:o.c==null?255:o.c,align:'center',base:'middle',maxw:w-1})};
   // r0
   hd(X0,y,colX[3]-X0,H0,'Serie de la orden (8 dígitos)',{size:6.5});
-  {let c=0;grp.forEach(gp=>{hd(px(c),y,pw*gp.n,H0,gp.s,{f:102,size:8.5});c+=gp.n})}
+  {let c=0;grp.forEach(gp=>{hd(px(c),y,pw*gp.n,H0,gp.s,{f:102,size:12.5});c+=gp.n})}
   hd(tx,y,W+X0-tx,H0,'TOTAL ESPERADO',{size:6.5});y+=H0;
   hd(X0,y,colX[3]-X0,H1,'Pallet = últimos 2 dígitos de la orden',{size:6.5});
   P.forEach((p,i)=>hd(px(i),y,pw,H1,p.sufijo,{size:N>12?11:N>8?12:N>6?14:17}));
@@ -2777,7 +2777,7 @@ function dibujar(D){
   const cod=c=>{const L=inf[c],R_=!!L.es_rack,top=y;
     R(colX[0],y,wC[0],rh,248,89,lw);T(c,colX[0]+1.5,y+rh/2+(R_?-.8:1.2),{size:10,bold:true,maxw:wC[0]-2});
     if(R_){R(colX[0]+1.5,y+rh-3.6,9,2.8,0);T('RACKS',colX[0]+6,y+rh-1.7,{size:4.6,bold:true,color:255,align:'center'})}
-    R(colX[1],y,wC[1],rh,248,89,lw);T(L.parte,colX[1]+wC[1]/2,y+rh/2,{size:7.5,align:'center',base:'middle',maxw:wC[1]-1.5});
+    R(colX[1],y,wC[1],rh,248,89,lw);T(L.parte,colX[1]+wC[1]/2,y+rh/2-(L.descripcion?1.6:0),{size:7.5,align:'center',base:'middle',maxw:wC[1]-1.5});if(L.descripcion)T(L.descripcion,colX[1]+wC[1]/2,y+rh/2+2.3,{size:4.8,color:64,align:'center',base:'middle',maxw:wC[1]-1.5});
     R(colX[2],y,wC[2],rh,248,89,lw);T(String(L.pzas||''),colX[2]+wC[2]/2,y+rh/2-(R_?.6:0),{size:7.5,align:'center',base:'middle'});if(R_)T('pzas/rack',colX[2]+wC[2]/2,y+rh/2+2.4,{size:4.8,align:'center',base:'middle',color:64});
     P.forEach((p,i)=>{const l=p.lineas.find(z=>z.codigo===c),cx=px(i);
       if(!l){hatch(cx,y,pw,rh);return}
