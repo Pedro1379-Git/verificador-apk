@@ -10205,7 +10205,8 @@ function msg(t,k,snd){const m=$('msg'),ic={ok:'✔',bad:'✖',warn:'!',dock:'◆
   m.className=k;m.innerHTML=`<i class="ic">${ic}</i><span class="tx">${esc(String(t).replace(/^[✔✖]\s*/,''))}</span>`;glow(k);beep(snd||(k==='dock'||k==='man'?'ok':k));
   clearTimeout(toastT);toastT=setTimeout(idle,k==='ok'?2200:k==='dock'||k==='man'?3000:4000)}
 function hl(c,cls){if(!c)return;const e=document.querySelector('.ln[data-c="'+c+'"]');if(!e)return;e.classList.add(cls);setTimeout(()=>e.classList.remove(cls),1500)}
-async function api(a,b){const r=await fetch('api.php?a='+a,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});
+async function api(a,b){if(b&&b.tipo==null&&/^esc_/.test(a)&&a!=='esc_abrir'&&typeof ST!=='undefined'&&ST&&ST.tipo)b=Object.assign({},b,{tipo:ST.tipo});
+  const r=await fetch('api.php?a='+a,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});
   const j=await r.json().catch(()=>({error:'Respuesta inválida del servidor'}));if(!r.ok){const e=new Error(j.error||r.status);e.data=j;throw e}return j}
 const sv=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}},ld=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
 
@@ -10216,7 +10217,7 @@ function render(){
   const e=ST.embarque,P=ST.pallets,ab=P.find(p=>p.orden===ST.abierto),sig=P.find(p=>p.orden===ST.siguiente);
   const tc=P.filter(p=>p.estado==='completo').length;
   const _tE=P.reduce((x,p)=>x+p.esperado,0),_tX=P.reduce((x,p)=>x+p.escaneado,0);
-  $('vHead').innerHTML=`<div class="route"><span class="rt">${esc(e.ruta)}</span><span class="dk">${esc(e.dock)}</span><span class="est ${e.estatus}">${ETQ[e.estatus]}</span></div>
+  $('vHead').innerHTML=`<div class="route"><span class="rt">${esc(e.ruta)}</span><span class="dk">${esc(e.dock)}</span><span class="est ${e.estatus}">${ETQ[e.estatus]}</span>${ST.dual?`<span class="dk" style="margin-left:8px;border:2px solid currentColor;padding:0 10px;border-radius:6px">DA ${esc(ST.tipo)}</span>`:''}</div>
     <div class="pt" style="margin-top:8px"><span><b>${tc} / ${P.length}</b> pallets completos · salida ${esc(e.salida.slice(11,16))}</span><span>${_tE?Math.round(100*_tX/_tE):0} % piezas</span></div><div class="pb"><i style="width:${_tE?100*_tX/_tE:0}%"></i></div>`;
   $('strip').innerHTML=P.map(p=>`<div class="chip ${p.estado}${p.orden===ST.siguiente&&!ab?' siguiente':''}" data-o="${p.orden}">${esc(p.sufijo)}<small>${p.estado==='completo'?'✓':p.estado==='saltado'?'saltado':p.escaneado+'/'+p.esperado}</small></div>`).join('');
   const nP=P.length,nC=tc,nS=P.filter(p=>p.estado==='saltado').length,nA=P.filter(p=>p.estado==='en_proceso').length,nPe=nP-nC-nS-nA;
@@ -10229,20 +10230,27 @@ function render(){
   const done=e.estatus==='preparado';
   $('vScan').hidden=false; /* el campo de escaneo siempre visible, también con el embarque preparado */
   const cur=ab||sig||P.find(p=>p.estado==='saltado');
+  const listoDA=!done&&ST.dual&&!!ST.resumen[ST.tipo]&&ST.resumen[ST.tipo].listo;
   if(done){$('vNow').hidden=false;$('vNow').className='card now';$('vNow').innerHTML=`<div class="big" style="color:var(--ok);font-size:40px">✔ Embarque preparado</div><div class="sub">Todos los pallets están completos.</div><button id="bDl" style="margin-top:10px;width:100%">⬇ Descargar Dock Audit actualizado (PDF)</button>`;$('bDl').onclick=()=>descargar($('bDl'));$('vLn').hidden=$('vAct').hidden=true}
+  else if(listoDA){
+    const o2=ST.tipo==='P'?'R':'P',r1=ST.resumen[ST.tipo],r2=ST.resumen[o2];
+    $('vNow').hidden=false;$('vNow').className='card now';
+    $('vNow').innerHTML=`<div class="big" style="color:var(--ok);font-size:34px">✔ Dock Audit ${esc(ST.tipo)} completo</div><div class="sub">${r1.vinculado?`Dock Audit ${esc(ST.tipo)} vinculado.`:`Escanea el QR del Dock Audit ${esc(ST.tipo)} para vincularlo.`}<br>${r2.vinculado?`Dock Audit ${o2} vinculado.`:r2.listo?`Falta escanear el QR del Dock Audit ${o2}.`:`Falta terminar el Dock Audit ${o2} (${r2.completos} de ${r2.total} pallets).`}</div>`;
+    $('vLn').hidden=true;$('vAct').hidden=true;$('hint').textContent='Escanea el QR de cada Dock Audit (en cualquier orden) para vincularlos y cerrar el embarque.'}
   else if(ab){
-    $('vNow').hidden=false;$('vNow').className='card now';$('vNow').innerHTML=`<div class="cur">PALLET ${esc(ab.sufijo)} · ORDEN ${esc(ab.orden)} · ${ab.escaneado} DE ${ab.esperado}</div>`;
+    $('vNow').hidden=false;$('vNow').className='card now';$('vNow').innerHTML=`<div class="cur">PALLET ${esc(ab.sufijo)} · ORDEN ${esc(ab.orden_real||ab.orden)} · ${ab.escaneado} DE ${ab.esperado}</div>`;
     $('vLn').hidden=false;$('vLn').innerHTML=ab.lineas.map(l=>`<div class="ln ${l.escaneado>=l.esperado?'ok':''}" data-c="${esc(l.codigo)}"><div><b>${esc(l.codigo)}</b>${l.es_rack?'<span class="tag">RACKS</span>':''}<br><small>${esc(l.parte)}${l.pzas?' · '+l.pzas+' pzs'+(l.es_rack?'/rack':'/caja'):''}</small></div><div class="q">${l.escaneado}/${l.esperado}</div><div class="bar"><i style="width:${Math.min(100,100*l.escaneado/l.esperado)}%"></i></div></div>`).join('');
     $('vAct').hidden=false;$('hint').textContent=`Escanea cada etiqueta del pallet ${ab.sufijo}.`}
   else{
     $('vNow').hidden=false;
     $('vNow').className='card now wait';
-    if(sig)$('vNow').innerHTML=`<h2>Siguiente pallet</h2><div class="big">${esc(sig.sufijo)}</div><div class="sub">Orden ${esc(sig.orden)}</div><div class="cta">Escanea el manifiesto de este pallet</div>`;
+    if(sig)$('vNow').innerHTML=`<h2>Siguiente pallet</h2><div class="big">${esc(sig.sufijo)}</div><div class="sub">Orden ${esc(sig.orden_real||sig.orden)}</div><div class="cta">Escanea el manifiesto de este pallet</div>`;
     else $('vNow').innerHTML=`<h2>Pallets saltados pendientes</h2><div class="big">${P.filter(p=>p.estado==='saltado').map(p=>esc(p.sufijo)).join(' · ')}</div><div class="sub">Escanea el manifiesto del pallet que quieras retomar.</div>`;
     $('vLn').hidden=true;$('vAct').hidden=!sig;$('bUndo').hidden=true;$('hint').textContent='Escanea el manifiesto del pallet indicado.'}
   $('bUndo').hidden=!ab;
   if(ab&&!done)$('vAct').hidden=false;
   if(done){$('vAct').hidden=true;$('hint').textContent='Embarque preparado. Escanea otro Dock Audit para continuar.'}
+  if(listoDA)$('vAct').hidden=true;
   $('bSkip').textContent=ab?'Saltar este pallet…':'Saltar pallet '+(sig?sig.sufijo:'')+'…';
   $('vRec').hidden=!ST.recientes.length;
   $('rec').innerHTML=ST.recientes.map(r=>`<li class="${r.resultado==='OK'||r.resultado==='ANULADA'?r.resultado:'mal'}">${r.hora} · ${esc(suf(r.orden))} · ${esc(r.parte||'?')} · ${r.resultado}${r.aviso?' ⚠':''}</li>`).join('');
@@ -10268,25 +10276,29 @@ async function confirmar(titulo,texto,btnSi,btnNo){await sonarAntes();return new
 
 async function descargar(btn){const o=btn.textContent;btn.disabled=true;btn.textContent='Generando PDF…';
   try{await descargarDockAudit(ST.embarque.id);msg('PDF descargado','ok')}catch(e){msg('No se pudo generar el PDF: '+e.message,'bad')}btn.disabled=false;btn.textContent=o}
-function mostrarFin(){const e=ST.embarque,P=ST.pallets;beep('ok');
-  $('fM').innerHTML=`<b>${esc(e.ruta)} ${esc(e.dock)}</b> · salida ${esc(e.salida.slice(11,16))}<br>${P.filter(p=>p.estado==='completo').length} de ${P.length} pallets completos.<br><br>Puedes descargar el Dock Audit con lo contado, las incidencias y los saltos registrados durante la auditoría.`;
+function mostrarFin(){const e=ST.embarque,P=ST.pallets,R=ST.resumen||{},tt=Object.keys(R).reduce((a,k)=>a+R[k].total,0),tk=Object.keys(R).reduce((a,k)=>a+R[k].completos,0);beep('ok');
+  $('fM').innerHTML=`<b>${esc(e.ruta)} ${esc(e.dock)}</b> · salida ${esc(e.salida.slice(11,16))}<br>${ST.dual?`${tk} de ${tt} pallets completos. Dock Audit P y R vinculados.`:`${P.filter(p=>p.estado==='completo').length} de ${P.length} pallets completos.`}<br><br>Puedes descargar el Dock Audit con lo contado, las incidencias y los saltos registrados durante la auditoría.`;
   $('fDl').onclick=()=>descargar($('fDl'));$('fCl').onclick=()=>$('dlgFin').close();$('dlgFin').showModal();$('dlgFin').focus()}
 
 // ---- lectura de códigos ----
 function parseLabel(t){const m=String(t).trim().match(/^(\S+?)\s{2,}(\d+)\s+(\S+)\s+(\d+)$/);if(!m)return null;
   const p=m[1].match(/[0-9A-Z]{5}-[0-9A-Z]{5}-\d{2}/);return {parte:p?p[0]:m[1],piezas:+m[2],qr:String(t).trim().replace(/\s+/g,' ')}}
-function parseManifest(t){t=String(t);if(typeof ST!=='undefined'&&ST){const u=t.toUpperCase(),p=ST.pallets.find(p=>u.includes(p.orden));if(p)return {orden:p.orden}}const m=t.match(/20\d{8}/);return m?{orden:m[0]}:null}
+function parseManifest(t){t=String(t);if(typeof ST!=='undefined'&&ST){const u=t.toUpperCase(),p=ST.pallets.find(p=>u.includes(p.orden_real||p.orden));if(p)return {orden:p.orden}}const m=t.match(/20\d{8}/);return m?{orden:m[0]}:null}
 function suf(o){const p=(ST&&ST.pallets||[]).find(p=>p.orden===o);return p&&p.sufijo?p.sufijo:String(o).slice(8)}
 async function onScan(t){
   t=String(t).trim();if(!t||busy)return;busy=true;
   try{
-    if(/^DA[A-Z0-9]{5,24}\d{12}$/i.test(t)){
-      const nid=t.toUpperCase().slice(2);
+    if(/^DA[A-Z0-9]{5,24}\d{12}[PR]?$/i.test(t)){
+      const mq=t.toUpperCase().match(/^DA([A-Z0-9]{5,24}\d{12})([PR]?)$/),nid=mq[1],lt=mq[2];
       if(ST&&nid!==ST.embarque.id&&ST.embarque.estatus!=='preparado'){
         const tc=ST.pallets.filter(p=>p.estado==='completo').length;
         const si=await confirmar('Escaneaste otro Dock Audit',`Estás trabajando en <b>${esc(ST.embarque.ruta)} ${esc(ST.embarque.dock)}</b> (${tc} de ${ST.pallets.length} pallets completos).<br>El código leído es de <b>${esc(nid.slice(0,-12))}</b>.<br><br>Tu avance queda guardado y podrás volver escaneando su Dock Audit.`,'Cambiar al nuevo Dock Audit','Continuar con el actual');
         if(!si){msg(`Continúas en ${ST.embarque.ruta} ${ST.embarque.dock}`,'warn');return}}
-      ST=await api('esc_abrir',{qr:t});sv('emb',ST.embarque.id);render();msg(`Dock Audit ${ST.embarque.ruta} ${ST.embarque.dock}`,'dock');return}
+      ST=await api('esc_abrir',{qr:t});sv('emb',ST.embarque.id);sv('tipo',ST.tipo||null);render();
+      if(ST.embarque_completo){msg('✔ EMBARQUE PREPARADO','ok');setTimeout(mostrarFin,900)}
+      else if(ST.vinculado_ahora){const o2=lt==='P'?'R':'P',r2=ST.resumen[o2];msg(`✔ Dock Audit ${lt} vinculado. `+(r2.listo?`Escanea el QR del Dock Audit ${o2}.`:`Falta terminar el Dock Audit ${o2}.`),'ok')}
+      else if(ST.dual&&ST.resumen[ST.tipo].listo&&!ST.resumen[ST.tipo].vinculado)msg(`Dock Audit ${ST.tipo} completo`,'ok');
+      else msg(`Dock Audit ${ST.embarque.ruta} ${ST.embarque.dock}`+(ST.dual?` · ${ST.tipo}`:''),'dock');return}
     if(!ST)return msg('Primero escanea el QR del Dock Audit.','bad');
     if(ST.embarque.estatus==='preparado')return msg('Este embarque ya está preparado.','warn');
     const l=parseLabel(t);
@@ -10295,6 +10307,7 @@ async function onScan(t){
       const j=await api('esc_etiqueta',{id:ST.embarque.id,qr:l.qr,parte:l.parte,piezas:l.piezas});ST=j;render();hl(j.codigo,j.resultado==='OK'?'hit':'mal');
       if(j.resultado==='OK'){
         if(j.embarque_completo){msg('✔ EMBARQUE PREPARADO','ok');setTimeout(mostrarFin,900)}
+        else if(j.da_listo)msg(`✔ Dock Audit ${j.da_listo} completo. Escanea su QR para vincularlo.`,'ok')
         else if(j.pallet_completo)msg(`✔ Pallet ${j.pallet} completo`+(ST.siguiente?`. Sigue el ${ST.pallets.find(p=>p.orden===ST.siguiente).sufijo}`:''),'ok');
         else{const x=ST.pallets.find(p=>p.orden===ST.abierto).lineas.find(z=>z.codigo===j.codigo);msg(`✔ ${j.codigo} · ${x.escaneado}/${x.esperado}`,'ok')}
       }else msg({NO_PERTENECE:`✖ ${j.parte} no pertenece al pallet ${j.pallet}`,DUPLICADA:'✖ Etiqueta ya escaneada'+(j.detalle?` (en la orden ${j.detalle})`:''),EXCESO:`✖ ${j.codigo}: ya está completo en este pallet`,PIEZAS_DISTINTAS:`✖ Etiqueta con ${j.pzas_etiqueta} pzas; la ORDER pide ${j.pzas_orden} (${j.codigo}). No se contó.`}[j.resultado]||j.resultado,'bad',j.resultado==='DUPLICADA'?'dup':'bad');
@@ -10343,5 +10356,5 @@ async function camStart(){
 function camStop(){cancelAnimationFrame(raf);if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('camBox').hidden=true}
 $('bCam').onclick=camStart;$('bStop').onclick=camStop;
 
-(async()=>{const id=ld('emb');if(id){try{ST=await api('esc_estado',{id})}catch(e){sv('emb',null)}}render()})();
+(async()=>{const id=ld('emb');if(id){try{ST=await api('esc_estado',{id,tipo:ld('tipo')||''})}catch(e){sv('emb',null)}}render()})();
 </script></body></html>

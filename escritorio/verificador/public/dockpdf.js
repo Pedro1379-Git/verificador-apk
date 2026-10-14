@@ -2699,18 +2699,19 @@ const TXT={DUPLICADA:'Etiqueta duplicada (ya escaneada)',NO_PERTENECE:'Número d
 async function datos(id){
   const g=async(a,b)=>{const r=await fetch('api.php?a='+a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j};
   const [st,au]=await Promise.all([g('esc_estado',{id}),g('auditoria',{id})]);return {st,au}}
-function armar({st,au}){
-  const e=st.embarque,P=st.pallets,inc=[];
-  const suf=o=>o.slice(8);
+function armar({st,au},tipo){
+  const e=st.embarque,P=st.pallets.filter(p=>!tipo||p.tipo===tipo),inc=[];
+  const suf=o=>String(o).replace(/#R$/,'').slice(8);
   const porPallet={};P.forEach(p=>porPallet[p.orden]=[]);
   const add=(o,detalle,accion,pal)=>{const n=inc.length+1;inc.push({n,pallet:suf(o),detalle,accion,cod:pal||''});(porPallet[o]=porPallet[o]||[]).push(n)};
-  au.saltos.forEach(s=>{const p=P.find(x=>x.orden===s.orden);add(s.orden,'Pallet omitido: '+s.razon,p&&p.estado==='completo'?'Retomado y completado después':'Pendiente, sin completar')});
-  au.rechazos.forEach(r=>{const det=(r.resultado==='PIEZAS_DISTINTAS'&&r.aviso?r.aviso:TXT[r.resultado]||r.resultado)+(r.n>1?' (x'+r.n+')':'');add(r.orden,det,'Etiqueta rechazada; no se contabilizó',r.codigo||'')});
+  au.saltos.filter(s=>P.some(x=>x.orden===s.orden)).forEach(s=>{const p=P.find(x=>x.orden===s.orden);add(s.orden,'Pallet omitido: '+s.razon,p&&p.estado==='completo'?'Retomado y completado después':'Pendiente, sin completar')});
+  au.rechazos.filter(r=>P.some(x=>x.orden===r.orden)).forEach(r=>{const det=(r.resultado==='PIEZAS_DISTINTAS'&&r.aviso?r.aviso:TXT[r.resultado]||r.resultado)+(r.n>1?' (x'+r.n+')':'');add(r.orden,det,'Etiqueta rechazada; no se contabilizó',r.codigo||'')});
   P.forEach(p=>{if(p.estado!=='completo'&&p.escaneado<p.esperado)add(p.orden,`Faltan ${p.esperado-p.escaneado} de ${p.esperado} etiquetas`,'Sin resolver')});
-  return {e,P,inc,porPallet,au}}
-function dibujar(D){
-  const {e,P,inc,porPallet,au}=D,{jsPDF}=window.jspdf,N=P.length;
-  const d=new jsPDF({orientation:'landscape',unit:'mm',format:'letter'});
+  return {e,P,inc,porPallet,au,tipo:tipo||''}}
+function dibujar(D,doc){
+  const {e,P,inc,porPallet,au,tipo}=D,{jsPDF}=window.jspdf,N=P.length;
+  let d=doc;if(d)d.addPage('letter','landscape');else d=new jsPDF({orientation:'landscape',unit:'mm',format:'letter'});
+  const pg0=d.getNumberOfPages();
   const g=(v)=>{d.setFillColor(v,v,v)},gl=v=>{d.setDrawColor(v,v,v)},gt=v=>{d.setTextColor(v,v,v)};
   const R=(x,y,w,h,f,s,lw)=>{if(f!=null){g(f)}if(s!=null){gl(s);d.setLineWidth(lw||.25)}d.rect(x,y,w,h,f!=null&&s!=null?'FD':f!=null?'F':'S')};
   const T=(t,x,y,o={})=>{t=String(t);let sz=o.size||8;d.setFont('helvetica',o.bold?'bold':'normal');d.setFontSize(sz);
@@ -2724,11 +2725,11 @@ function dibujar(D){
   const csC=cs.filter(c=>!inf[c].es_rack),csR=cs.filter(c=>inf[c].es_rack);
   const eC=tot(csC,'esperado'),eR=tot(csR,'esperado'),xC=tot(csC,'escaneado'),xR=tot(csR,'escaneado');
   const X0=7,W=265.4;let y=7;
-  T('DOCK AUDIT · Preparación de embarque',X0,y+3,{size:9,bold:true});
-  T('AUDITADO POR ESCANEO · '+e.id,X0+W,y+3,{size:6.5,color:64,align:'right'});
+  T('DOCK AUDIT'+(tipo?' '+tipo+' · '+(tipo==='P'?'PALLETS':'RACKS'):'')+' · Preparación de embarque',X0,y+3,{size:9,bold:true});
+  T('AUDITADO POR ESCANEO · '+e.id+tipo,X0+W,y+3,{size:6.5,color:64,align:'right'});
   y=11.5;
   // ---- banner
-  const bw=[52,34,66,20,38,29,26].map(v=>v*W/265),bh=24;let bx=X0;
+  const bw=(tipo?[47,30,58,18,34,26,26,26]:[52,34,66,20,38,29,26]).map(v=>v*W/265),bh=24;let bx=X0;
   const cell=(i,f)=>{const x=bx;R(x,y,bw[i],bh,f,0,.3);bx+=bw[i];return x};
   let x=cell(0,0);T('RUTA',x+2.5,y+4,{size:6.5,bold:true,color:255});T(e.ruta,x+2.5,y+18,{size:34,bold:true,color:255,maxw:bw[0]-5});
   x=cell(1,122);T('DOCK',x+2.5,y+4,{size:6.5,bold:true,color:255});T(e.dock,x+2.5,y+16,{size:20,bold:true,color:255,maxw:bw[1]-5});
@@ -2742,8 +2743,9 @@ function dibujar(D){
   x=cell(5,248);T('FECHA  '+(fa||'___/___/______'),x+2.2,y+5,{size:7,bold:true,maxw:bw[5]-4});T('TURNO ______',x+2.2,y+11,{size:7,bold:true});
   T('Inicio '+(au.inicio?au.inicio.slice(11,16):'--:--'),x+2.2,y+17,{size:6.5,color:64});T('Fin '+(au.fin?au.fin.slice(11,16):'--:--'),x+2.2,y+21,{size:6.5,color:64});
   x=cell(6,255);
-  const qrm=qrcode(0,'M');qrm.addData('DA'+e.id);qrm.make();const n=qrm.getModuleCount(),side=bw[6]-3,k=side/n;g(0);
+  const qrm=qrcode(0,'M');qrm.addData('DA'+e.id+tipo);qrm.make();const n=qrm.getModuleCount(),side=bw[6]-3,k=side/n;g(0);
   for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(qrm.isDark(i,j))d.rect(x+1.5+j*k,y+(bh-side)/2+i*k,k+.02,k+.02,'F');
+  if(tipo){x=cell(7,255);R(x+1.5,y+(bh-side)/2,side,side,255,0,1.2);T(tipo,x+bw[7]/2,y+bh/2+.5,{size:60,bold:true,align:'center',base:'middle'})}
   y+=bh+2;
   // ---- matriz
   const wC=[15,34,13],wT=[14,14,17],pw=(W-wC.reduce((a,b)=>a+b)-wT.reduce((a,b)=>a+b))/N;
@@ -2806,7 +2808,7 @@ function dibujar(D){
   R(tx,y,W+X0-tx,hInc,255,89,lw);y+=hInc;
   const y1m=y;{let c=0;grp.forEach((gp,gi)=>{if(gi>0){gl(0);d.setLineWidth(.7);d.line(px(c),y0m-H0-H1-H_M-H2-H3,px(c),y1m)}c+=gp.n})}
   // ---- nota
-  y+=2.2;const nota='Cada columna es un pallet y corresponde a una orden (se identifica por sus últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Una casilla rayada indica que esa parte no va en ese pallet. '+(csR.length?'El fondo gris y la etiqueta RACKS indican que esas partes se envían en racks, no en cajas. ':'')+''+(N>=7?'Cada casilla muestra lo esperado; si lo escaneado difiere, la casilla lleva un recuadro grueso y el número contado (c:) en la esquina.':'Cada casilla muestra lo esperado y lo contado por escaneo (OK: coincide; «!»: hay diferencia y se marca con recuadro grueso).');
+  y+=2.2;const nota=(tipo?'Este embarque tiene dos Dock Audit: P (pallets) y R (racks); se vinculan escaneando el QR de ambos. Esta hoja es la '+tipo+'. ':'')+'Cada columna es un pallet y corresponde a una orden (se identifica por sus últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Una casilla rayada indica que esa parte no va en ese pallet. '+(csR.length?'El fondo gris y la etiqueta RACKS indican que esas partes se envían en racks, no en cajas. ':'')+''+(N>=7?'Cada casilla muestra lo esperado; si lo escaneado difiere, la casilla lleva un recuadro grueso y el número contado (c:) en la esquina.':'Cada casilla muestra lo esperado y lo contado por escaneo (OK: coincide; «!»: hay diferencia y se marca con recuadro grueso).');
   d.setFont('helvetica','normal');d.setFontSize(6.6);gt(38);const nl=d.splitTextToSize(nota,W);d.text(nl,X0,y+2.2);y+=nl.length*2.8+1.5;
   // ---- bloque inferior
   const lh=5.8,LW=100,CW=W-LW-1.5,cx0=X0+LW+1.5;
@@ -2833,12 +2835,13 @@ function dibujar(D){
     inc.forEach(it=>{if(yy>200){d.addPage('letter','landscape');yy=14}xx=X0;[String(it.n),it.pallet+(it.cod?' / '+it.cod:''),it.detalle,it.accion].forEach((s,i)=>{R(xx,yy,w4[i],6,255,89,lw);T(s,xx+2,yy+3,{size:7.5,base:'middle',maxw:w4[i]-3});xx+=w4[i]});yy+=6})}
   // ---- marca de agua de estatus (gris claro, en todas las hojas)
   const completo=P.length>0&&P.every(p=>p.estado==='completo'),wm=completo?'COMPLETADO':'INCOMPLETO',ang=28,rad=ang*Math.PI/180;
-  for(let pg=1;pg<=d.getNumberOfPages();pg++){d.setPage(pg);d.saveGraphicsState();d.setGState(new d.GState({opacity:completo?.09:.30,'stroke-opacity':completo?.09:.45}));if(!completo){d.setDrawColor(0);d.setLineWidth(1.4)}
+  for(let pg=pg0;pg<=d.getNumberOfPages();pg++){d.setPage(pg);d.saveGraphicsState();d.setGState(new d.GState({opacity:completo?.09:.30,'stroke-opacity':completo?.09:.45}));if(!completo){d.setDrawColor(0);d.setLineWidth(1.4)}
     d.setFont('helvetica','bold');d.setFontSize(96);gt(0);const w=d.getTextWidth(wm),cx=139.7,cy=107.9,h=96*.3528;
     d.text(wm,cx-(w/2)*Math.cos(rad)+(h/3)*Math.sin(rad),cy+(w/2)*Math.sin(rad)+(h/3)*Math.cos(rad),completo?{angle:ang}:{angle:ang,renderingMode:'fillThenStroke'});d.restoreGraphicsState()}
   return d}
+function construir(x){const D=x.st.dual?[armar(x,'P'),armar(x,'R')]:[armar(x)];let doc=null;D.forEach(z=>{doc=dibujar(z,doc)});return {doc,e:D[0].e}}
 window.descargarDockAudit=async function(id){
-  const D=armar(await datos(id));const doc=dibujar(D),e=D.e;
+  const {doc,e}=construir(await datos(id));
   doc.save(`DockAudit_${e.ruta}_${e.dock}_${e.salida.slice(0,10).replace(/-/g,'')}_${e.salida.slice(11,16).replace(':','')}_auditado.pdf`)};
-window.__dockAuditDoc=async function(id){return dibujar(armar(await datos(id)))};
+window.__dockAuditDoc=async function(id){return construir(await datos(id)).doc};
 })();

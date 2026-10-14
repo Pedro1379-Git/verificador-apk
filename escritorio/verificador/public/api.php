@@ -36,6 +36,8 @@ $cols = array_column($db->query("PRAGMA table_info(embarque_pallets)")->fetchAll
 foreach (['estado' => "TEXT NOT NULL DEFAULT 'pendiente'", 'razon' => 'TEXT', 'inicio' => 'TEXT', 'fin' => 'TEXT', 'manifiestos' => 'TEXT', 'mros' => 'TEXT'] as $c => $t)
   if (!in_array($c, $cols)) $db->exec("ALTER TABLE embarque_pallets ADD COLUMN $c $t");
 foreach (['plan_orden', 'embarque_lineas'] as $t) { $cc = array_column($db->query("PRAGMA table_info($t)")->fetchAll(PDO::FETCH_ASSOC), 'name'); if (!in_array('descripcion', $cc)) $db->exec("ALTER TABLE $t ADD COLUMN descripcion TEXT"); }
+$ec = array_column($db->query("PRAGMA table_info(embarques)")->fetchAll(PDO::FETCH_ASSOC), 'name');
+foreach (['vinc_p', 'vinc_r'] as $c) if (!in_array($c, $ec)) $db->exec("ALTER TABLE embarques ADD COLUMN $c TEXT");
 $db->exec("CREATE TABLE IF NOT EXISTS embarque_escaneos(id INTEGER PRIMARY KEY AUTOINCREMENT,embarque_id TEXT,orden TEXT,qr TEXT,parte TEXT,codigo TEXT,piezas INTEGER,resultado TEXT,aviso TEXT,hora TEXT DEFAULT (datetime('now','localtime')));
 CREATE INDEX IF NOT EXISTS ix_ee_qr ON embarque_escaneos(qr);
 CREATE TABLE IF NOT EXISTS embarque_saltos(id INTEGER PRIMARY KEY AUTOINCREMENT,embarque_id TEXT,orden TEXT,razon TEXT,hora TEXT DEFAULT (datetime('now','localtime')));");
@@ -58,23 +60,36 @@ function snap($db, $id) { // estado actual de una verificación
   return ['escaneado' => (object)$esc, 'recientes' => $s->fetchAll(PDO::FETCH_ASSOC)];
 }
 
-function esc_estado($db, $id) { // estado completo del embarque para la pantalla de escaneo
+function orden_real($k) { return preg_replace('/#R$/', '', (string)$k); } // la parte de racks de una orden mixta lleva el sufijo #R
+
+function esc_estado($db, $id, $tipo = '') { // estado completo del embarque para la pantalla de escaneo ($tipo = P o R filtra un Dock Audit)
   $s = $db->prepare('SELECT * FROM embarques WHERE id=?'); $s->execute([$id]); $e = $s->fetch(PDO::FETCH_ASSOC);
   if (!$e) out(404, ['error' => 'Embarque no encontrado.']);
   $s = $db->prepare("SELECT codigo, orden, COUNT(*) FROM embarque_escaneos WHERE embarque_id=? AND resultado='OK' GROUP BY orden, codigo"); $s->execute([$id]);
   $cnt = []; foreach ($s->fetchAll(PDO::FETCH_NUM) as $r) $cnt[$r[1] . '|' . $r[0]] = (int)$r[2];
   $s = $db->prepare('SELECT * FROM embarque_pallets WHERE embarque_id=? ORDER BY orden'); $s->execute([$id]); $pal = $s->fetchAll(PDO::FETCH_ASSOC);
   $s = $db->prepare('SELECT * FROM embarque_lineas WHERE embarque_id=? ORDER BY codigo'); $s->execute([$id]); $L = $s->fetchAll(PDO::FETCH_ASSOC);
-  $abierto = null; $sig = null;
   foreach ($pal as &$p) {
-    $p['lineas'] = []; $p['skids'] = (int)$p['skids'];
+    $p['lineas'] = []; $p['skids'] = (int)$p['skids']; $p['orden_real'] = orden_real($p['orden']);
     foreach ($L as $l) if ($l['orden'] === $p['orden']) { $l['escaneado'] = $cnt[$l['orden'] . '|' . $l['codigo']] ?? 0; $l['esperado'] = (int)$l['esperado']; $l['es_rack'] = (int)$l['es_rack']; $l['pzas'] = (int)$l['pzas']; $p['lineas'][] = $l; }
     $p['esperado'] = array_sum(array_column($p['lineas'], 'esperado')); $p['escaneado'] = array_sum(array_column($p['lineas'], 'escaneado'));
+    $p['tipo'] = ($p['lineas'] && !array_filter($p['lineas'], function ($l) { return !$l['es_rack']; })) ? 'R' : 'P';
+  } unset($p);
+  $res = [];
+  foreach ($pal as $p) { $t = $p['tipo']; if (!isset($res[$t])) $res[$t] = ['total' => 0, 'completos' => 0, 'listo' => false, 'vinculado' => false];
+    $res[$t]['total']++; if ($p['estado'] === 'completo') $res[$t]['completos']++; }
+  $dual = count($res) === 2;
+  foreach ($res as $t => &$r) { $r['listo'] = $r['total'] > 0 && $r['completos'] === $r['total']; $r['vinculado'] = trim((string)($e['vinc_' . strtolower($t)] ?? '')) !== ''; } unset($r);
+  if ($dual && ($tipo === 'P' || $tipo === 'R')) $pal = array_values(array_filter($pal, function ($p) use ($tipo) { return $p['tipo'] === $tipo; }));
+  else $tipo = '';
+  if (!$dual) $tipo = '';
+  $abierto = null; $sig = null;
+  foreach ($pal as $p) {
     if ($p['estado'] === 'en_proceso') $abierto = $p['orden'];
     if ($sig === null && $p['estado'] === 'pendiente') $sig = $p['orden'];
-  } unset($p);
+  }
   $s = $db->prepare("SELECT orden,parte,resultado,aviso,substr(hora,12,8) AS hora FROM embarque_escaneos WHERE embarque_id=? ORDER BY id DESC LIMIT 8"); $s->execute([$id]);
-  return ['embarque' => $e, 'pallets' => $pal, 'abierto' => $abierto, 'siguiente' => $sig, 'recientes' => $s->fetchAll(PDO::FETCH_ASSOC)];
+  return ['embarque' => $e, 'pallets' => $pal, 'abierto' => $abierto, 'siguiente' => $sig, 'recientes' => $s->fetchAll(PDO::FETCH_ASSOC), 'dual' => $dual, 'tipo' => $tipo, 'resumen' => $res];
 }
 
 $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
@@ -201,7 +216,8 @@ try {
           $o = &$por[$r['orden']];
           if (!$o) $o = ['serie' => substr($r['orden'], 0, 8), 'sufijo' => substr($r['orden'], 8, 2), 'pc' => [], 'sk' => [], 'cod' => [], 'mr' => []];
           foreach (explode(',', $r['codigos']) as $cc) if ($cc !== '') $o['cod'][$cc] = 1;
-          if (trim((string)$r['mros']) !== '') $o['mr'][trim($r['mros'])] = 1; if ($r['palcode'] !== '') $o['pc'][$r['palcode']] = 1; $o['sk'][$r['pallet']] = 1; unset($o);
+          if (trim((string)$r['mros']) !== '') $o['mr'][trim($r['mros'])] = 1; if ($r['palcode'] !== '') $o['pc'][$r['palcode']] = 1; $o['sk'][$r['pallet']] = 1;
+          $o['rows'][] = ['sk' => $r['pallet'], 'pc' => $r['palcode'], 'mr' => trim((string)$r['mros']), 'cod' => array_filter(explode(',', $r['codigos']), 'strlen')]; unset($o);
         }
         $falta = []; $lin = [];
         $q = $db->prepare('SELECT codigo, parte, pzas, cajas, descripcion FROM plan_orden WHERE orden=?');
@@ -213,9 +229,28 @@ try {
             $lin[] = [$ord, $r['codigo'], $r['parte'], (int)$r['pzas'], in_array($r['parte'], $RK) ? 1 : 0, (int)$r['cajas'], $k === false ? null : (int)$k, $ds]; }
         }
         if ($falta) { $rechazados[] = ['id' => $id, 'motivo' => 'Falta la ORDER de: ' . implode(', ', $falta)]; continue; }
+        // Una orden con cajas y racks se parte en dos unidades: la de racks lleva el sufijo #R y va en su propio Dock Audit (R)
+        $rkc = []; foreach ($lin as $l) $rkc[$l[0]][$l[1]] = $l[4];
+        $uni = [];
+        foreach ($por as $ord => $o) {
+          $hR = false; $hP = false; foreach ($rkc[$ord] as $v) { if ($v) $hR = true; else $hP = true; }
+          if (!($hR && $hP)) { unset($o['rows']); $uni[$ord] = $o; continue; }
+          foreach (['P' => $ord, 'R' => $ord . '#R'] as $tp => $key) {
+            $u = ['serie' => $o['serie'], 'sufijo' => $o['sufijo'], 'pc' => [], 'sk' => [], 'mr' => []];
+            foreach ($o['rows'] as $rw) {
+              $nR = 0; $nP = 0; foreach ($rw['cod'] as $cc) { if (!empty($rkc[$ord][$cc])) $nR++; else $nP++; }
+              if (($tp === 'R' && $nR === 0 && $nP > 0) || ($tp === 'P' && $nP === 0 && $nR > 0)) continue;
+              if ($rw['pc'] !== '') $u['pc'][$rw['pc']] = 1; if ($rw['mr'] !== '') $u['mr'][$rw['mr']] = 1; $u['sk'][$rw['sk']] = 1;
+            }
+            if (!$u['sk']) { $u['sk'] = $o['sk']; $u['pc'] = $o['pc']; $u['mr'] = $o['mr']; }
+            $uni[$key] = $u;
+          }
+          foreach ($lin as &$l) if ($l[0] === $ord && $l[4]) $l[0] = $ord . '#R'; unset($l);
+        }
+        $por = $uni;
         $existe->execute([$id]); $est = $existe->fetchColumn();
         if ($est !== false && $est !== 'creado') { // ya en proceso: no se toca, solo se actualiza la comparación con KAN
-          $db->prepare('UPDATE embarque_lineas SET kan=(SELECT cajas FROM plan_kanban k WHERE k.dock=? AND k.orden=embarque_lineas.orden AND k.codigo=embarque_lineas.codigo) WHERE embarque_id=?')->execute([$e['dock'], $id]);
+          $db->prepare("UPDATE embarque_lineas SET kan=(SELECT cajas FROM plan_kanban k WHERE k.dock=? AND k.orden=REPLACE(embarque_lineas.orden,'#R','') AND k.codigo=embarque_lineas.codigo) WHERE embarque_id=?")->execute([$e['dock'], $id]);
           $um = $db->prepare('UPDATE embarque_pallets SET mros=? WHERE embarque_id=? AND orden=?'); foreach ($por as $ord => $o) $um->execute([implode(' / ', array_keys($o['mr'])), $id, $ord]);
           $ud = $db->prepare('UPDATE embarque_lineas SET descripcion=? WHERE embarque_id=? AND orden=? AND codigo=?'); foreach ($lin as $l) $ud->execute([$l[7], $id, $l[0], $l[1]]);
           $omitidos[] = $id; continue; }
@@ -252,6 +287,10 @@ try {
       if (!$e) out(404, ['error' => 'Embarque no encontrado.']);
       $s = $db->prepare('SELECT * FROM embarque_pallets WHERE embarque_id=? ORDER BY orden'); $s->execute([$id]); $e['pallets_det'] = nums($s->fetchAll(PDO::FETCH_ASSOC), ['skids']);
       $s = $db->prepare('SELECT * FROM embarque_lineas WHERE embarque_id=? ORDER BY codigo, orden'); $s->execute([$id]); $e['lineas'] = nums($s->fetchAll(PDO::FETCH_ASSOC), ['pzas', 'es_rack', 'esperado', 'kan']);
+      $tt = []; foreach ($e['lineas'] as $l) { if (!isset($tt[$l['orden']])) $tt[$l['orden']] = 'R'; if (!$l['es_rack']) $tt[$l['orden']] = 'P'; }
+      $tipos = []; foreach ($e['pallets_det'] as &$pd) { $pd['tipo'] = $tt[$pd['orden']] ?? 'P'; $pd['orden_real'] = orden_real($pd['orden']); $tipos[$pd['tipo']] = 1; } unset($pd);
+      foreach ($e['lineas'] as &$l) { $l['tipo'] = $l['es_rack'] ? 'R' : 'P'; $l['orden_real'] = orden_real($l['orden']); } unset($l);
+      $e['dual'] = count($tipos) === 2;
       $s = $db->prepare('SELECT estatus, nota, hora FROM embarque_log WHERE embarque_id=? ORDER BY id'); $s->execute([$id]); $e['log'] = $s->fetchAll(PDO::FETCH_ASSOC);
       $e = nums([$e], ['pallets', 'cajas', 'racks'])[0];
       out(200, $e);
@@ -268,22 +307,41 @@ try {
       out(200, ['estatus' => $est]);
 
     // ====== Escaneo (Módulo C) ======
-    case 'esc_abrir': // QR del Dock Audit: "DA" + ID del embarque
+    case 'esc_abrir': // QR del Dock Audit: "DA" + ID del embarque (+ P o R cuando el embarque tiene dos Dock Audit)
       $t = strtoupper(trim((string)($in['qr'] ?? '')));
-      if (!preg_match('/^DA([A-Z0-9]{5,24}\d{12})$/', $t, $m)) out(400, ['error' => 'Ese código no es el QR de un Dock Audit.']);
-      $s = $db->prepare('SELECT estatus FROM embarques WHERE id=?'); $s->execute([$m[1]]); $est = $s->fetchColumn();
-      if ($est === false) out(404, ['error' => 'El embarque ' . $m[1] . ' no existe en la base. Crea los embarques primero.']);
-      if ($est === 'creado') { $db->prepare("UPDATE embarques SET estatus='en_verificacion',actualizado=datetime('now','localtime') WHERE id=?")->execute([$m[1]]);
-        $db->prepare("INSERT INTO embarque_log(embarque_id,estatus,nota) VALUES(?, 'en_verificacion', 'Dock Audit escaneado')")->execute([$m[1]]); }
-      out(200, esc_estado($db, $m[1]));
+      if (!preg_match('/^DA([A-Z0-9]{5,24}\d{12})([PR]?)$/', $t, $m)) out(400, ['error' => 'Ese código no es el QR de un Dock Audit.']);
+      $id = $m[1]; $LT = $m[2];
+      $s = $db->prepare('SELECT estatus FROM embarques WHERE id=?'); $s->execute([$id]); $est = $s->fetchColumn();
+      if ($est === false) out(404, ['error' => 'El embarque ' . $id . ' no existe en la base. Crea los embarques primero.']);
+      if ($est === 'creado') { $db->prepare("UPDATE embarques SET estatus='en_verificacion',actualizado=datetime('now','localtime') WHERE id=?")->execute([$id]);
+        $db->prepare("INSERT INTO embarque_log(embarque_id,estatus,nota) VALUES(?, 'en_verificacion', 'Dock Audit escaneado')")->execute([$id]); }
+      $st = esc_estado($db, $id, $LT); $vinc = ''; $embOk = false;
+      if ($st['dual']) {
+        if ($LT === '') out(400, ['error' => 'Este embarque tiene dos Dock Audit (P = pallets, R = racks). Escanea el QR del Dock Audit P o del R.']);
+        $r = $st['resumen'][$LT];
+        if ($r['listo'] && !$r['vinculado'] && $st['embarque']['estatus'] !== 'preparado') {
+          $col = $LT === 'P' ? 'vinc_p' : 'vinc_r';
+          $db->prepare("UPDATE embarques SET $col=datetime('now','localtime'),actualizado=datetime('now','localtime') WHERE id=?")->execute([$id]);
+          $db->prepare("INSERT INTO embarque_log(embarque_id,estatus,nota) VALUES(?, 'en_verificacion', ?)")->execute([$id, "Dock Audit $LT vinculado por QR"]);
+          $vinc = $LT; $st = esc_estado($db, $id, $LT);
+          if ($st['resumen']['P']['vinculado'] && $st['resumen']['R']['vinculado']) {
+            $db->prepare("UPDATE embarques SET estatus='preparado',actualizado=datetime('now','localtime') WHERE id=?")->execute([$id]);
+            $db->prepare("INSERT INTO embarque_log(embarque_id,estatus,nota) VALUES(?, 'preparado', 'Dock Audit P y R vinculados por QR')")->execute([$id]);
+            $embOk = true; $st = esc_estado($db, $id, $LT); }
+        }
+      }
+      out(200, array_merge($st, ['vinculado_ahora' => $vinc, 'embarque_completo' => $embOk]));
 
     case 'esc_estado':
-      out(200, esc_estado($db, (string)($in['id'] ?? '')));
+      out(200, esc_estado($db, (string)($in['id'] ?? ''), (string)($in['tipo'] ?? '')));
 
     case 'esc_manifiesto':
       $id = (string)($in['id'] ?? ''); $o = (string)($in['orden'] ?? ''); $razon = trim((string)($in['razon'] ?? ''));
-      $st = esc_estado($db, $id); if ($st['embarque']['estatus'] === 'preparado') out(409, ['error' => 'Este embarque ya está preparado.']);
+      $tp = (string)($in['tipo'] ?? '');
+      $st = esc_estado($db, $id, $tp); if ($st['embarque']['estatus'] === 'preparado') out(409, ['error' => 'Este embarque ya está preparado.']);
       $P = array_column($st['pallets'], null, 'orden');
+      if (!isset($P[$o]) && isset($P[$o . '#R'])) $o = $o . '#R';
+      if (!isset($P[$o]) && $st['dual']) { $todo = esc_estado($db, $id); foreach ($todo['pallets'] as $q) if ($q['orden'] === $o || $q['orden'] === $o . '#R') out(409, ['error' => "✖ La orden " . orden_real($o) . " es del Dock Audit {$q['tipo']}, no de este."]); }
       if (!isset($P[$o])) {
         $s = $db->prepare('SELECT embarque_id FROM embarque_pallets WHERE orden=? LIMIT 1'); $s->execute([$o]); $otro = $s->fetchColumn();
         out(409, ['error' => $otro ? "✖ La orden $o pertenece a otro embarque ($otro)." : "✖ La orden $o no está en este embarque."]);
@@ -302,7 +360,7 @@ try {
       $db->prepare("UPDATE embarque_pallets SET estado='en_proceso',inicio=COALESCE(inicio,datetime('now','localtime')),manifiestos=CASE WHEN manifiestos IS NULL OR manifiestos='' THEN ? WHEN instr(manifiestos,?)>0 THEN manifiestos ELSE manifiestos||char(10)||? END WHERE embarque_id=? AND orden=?")
          ->execute([$man, $man, $man, $id, $o]);
       $db->commit();
-      out(200, esc_estado($db, $id));
+      out(200, esc_estado($db, $id, $tp));
 
     case 'esc_saltar':
       $id = (string)($in['id'] ?? ''); $o = (string)($in['orden'] ?? ''); $razon = trim((string)($in['razon'] ?? ''));
@@ -314,12 +372,13 @@ try {
       $db->prepare("UPDATE embarque_pallets SET estado='saltado',razon=? WHERE embarque_id=? AND orden=?")->execute([$razon, $id, $o]);
       $db->prepare('INSERT INTO embarque_saltos(embarque_id,orden,razon) VALUES(?,?,?)')->execute([$id, $o, $razon]);
       $db->commit();
-      out(200, esc_estado($db, $id));
+      out(200, esc_estado($db, $id, (string)($in['tipo'] ?? '')));
 
     case 'esc_etiqueta':
       $id = (string)($in['id'] ?? ''); $qr = trim(preg_replace('/\s+/', ' ', (string)($in['qr'] ?? ''))); $parte = strtoupper(trim((string)($in['parte'] ?? ''))); $pz = (int)($in['piezas'] ?? 0);
       if ($qr === '' || $parte === '') out(400, ['error' => 'Etiqueta incompleta.']);
-      $st = esc_estado($db, $id); $o = $st['abierto'];
+      $tp = (string)($in['tipo'] ?? '');
+      $st = esc_estado($db, $id, $tp); $o = $st['abierto'];
       if (!$o) out(409, ['error' => 'Primero escanea el manifiesto del pallet.']);
       $pal = null; foreach ($st['pallets'] as $q) if ($q['orden'] === $o) $pal = $q;
       // el N.º de parte puede venir sin guiones y con prefijo (p. ej. 81515690403000 = 81 + 51569-04030-00)
@@ -333,26 +392,27 @@ try {
       elseif ($lin['escaneado'] + 1 > $lin['esperado']) $res = 'EXCESO';
       $db->prepare('INSERT INTO embarque_escaneos(embarque_id,orden,qr,parte,codigo,piezas,resultado,aviso) VALUES(?,?,?,?,?,?,?,?)')
          ->execute([$id, $o, $qr, $lin['parte'] ?? $parte, $lin['codigo'] ?? null, $pz, $res, $aviso]);
-      $st = esc_estado($db, $id);
+      $st = esc_estado($db, $id, $tp);
       foreach ($st['pallets'] as $q) if ($q['orden'] === $o) $pal = $q;
-      $palCompleto = false; $embCompleto = false;
+      $palCompleto = false; $embCompleto = false; $daListo = '';
       if ($res === 'OK' && array_sum(array_column($pal['lineas'], 'escaneado')) >= array_sum(array_column($pal['lineas'], 'esperado'))) {
         $db->prepare("UPDATE embarque_pallets SET estado='completo',fin=datetime('now','localtime') WHERE embarque_id=? AND orden=?")->execute([$id, $o]);
-        $palCompleto = true; $st = esc_estado($db, $id);
+        $palCompleto = true; $st = esc_estado($db, $id, $tp);
         if (!array_filter($st['pallets'], function ($x) { return $x['estado'] !== 'completo'; })) {
+          if ($st['dual']) { $daListo = $st['tipo']; } else {
           $db->prepare("UPDATE embarques SET estatus='preparado',actualizado=datetime('now','localtime') WHERE id=?")->execute([$id]);
           $db->prepare("INSERT INTO embarque_log(embarque_id,estatus,nota) VALUES(?, 'preparado', 'Todos los pallets completos por escaneo')")->execute([$id]);
-          $embCompleto = true; $st = esc_estado($db, $id); }
+          $embCompleto = true; $st = esc_estado($db, $id, $tp); } }
       }
-      out(200, array_merge($st, ['resultado' => $res, 'detalle' => $det, 'aviso' => $aviso, 'pzas_orden' => (int)($lin['pzas'] ?? 0), 'pzas_etiqueta' => $pz, 'parte' => $lin['parte'] ?? $parte, 'codigo' => $lin['codigo'] ?? '', 'pallet_completo' => $palCompleto, 'embarque_completo' => $embCompleto, 'pallet' => $pal['sufijo']]));
+      out(200, array_merge($st, ['resultado' => $res, 'detalle' => $det, 'aviso' => $aviso, 'pzas_orden' => (int)($lin['pzas'] ?? 0), 'pzas_etiqueta' => $pz, 'parte' => $lin['parte'] ?? $parte, 'codigo' => $lin['codigo'] ?? '', 'pallet_completo' => $palCompleto, 'embarque_completo' => $embCompleto, 'da_listo' => $daListo, 'pallet' => $pal['sufijo']]));
 
     case 'esc_anular':
-      $id = (string)($in['id'] ?? ''); $st = esc_estado($db, $id); $o = $st['abierto'];
+      $id = (string)($in['id'] ?? ''); $tp = (string)($in['tipo'] ?? ''); $st = esc_estado($db, $id, $tp); $o = $st['abierto'];
       if (!$o) out(409, ['error' => 'No hay un pallet abierto.']);
       $s = $db->prepare("SELECT id,parte FROM embarque_escaneos WHERE embarque_id=? AND orden=? AND resultado='OK' ORDER BY id DESC LIMIT 1"); $s->execute([$id, $o]); $u = $s->fetch(PDO::FETCH_ASSOC);
       if (!$u) out(404, ['error' => 'No hay escaneos que anular en este pallet.']);
       $db->prepare("UPDATE embarque_escaneos SET resultado='ANULADA' WHERE id=?")->execute([$u['id']]);
-      out(200, array_merge(esc_estado($db, $id), ['parte' => $u['parte']]));
+      out(200, array_merge(esc_estado($db, $id, $tp), ['parte' => $u['parte']]));
 
     case 'exportar': // CSV: tipo=resumen|lineas|escaneos|saltos; id=embarque o fecha=YYYY-MM-DD
       $tipo = $_GET['tipo'] ?? 'resumen'; $id = $_GET['id'] ?? ''; $f = $_GET['fecha'] ?? '';

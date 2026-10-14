@@ -43,6 +43,9 @@ details summary{cursor:pointer;font-weight:700;color:var(--az);margin:6px 0}
 .bn .k{background:#000;color:#fff}.bn .d{background:#7a7a7a;color:#fff}.bn .g{background:#f8f8f8}
 .bn .qr{padding:1mm;align-items:center;background:#fff;border-left:.3mm solid #000;grid-column:7}
 .bn .qr svg{width:100%;height:auto}
+.bn.dual{grid-template-columns:47mm 30mm 58mm 18mm 34mm 26mm 26mm 26mm}
+.bn .lt{padding:1mm;align-items:center;background:#fff;border-left:.3mm solid #000;grid-column:8}
+.bn .lt div{width:100%;aspect-ratio:1/1;border:.8mm solid #000;display:flex;align-items:center;justify-content:center;font-size:64pt;font-weight:900;line-height:1}
 table.m{border-collapse:collapse;width:100%;table-layout:fixed;font-size:8pt}
 .m th,.m td{border:.25mm solid #595959;padding:.2mm .6mm;text-align:center;overflow:hidden}
 .m th{background:#404040;color:#fff;font-weight:700}.m th.s{background:#666}.m th.l{background:#f8f8f8;color:#404040;font-weight:700;font-size:6.5pt}
@@ -2548,14 +2551,14 @@ async function abrir(id){
   const cs=[...new Set(e.lineas.map(l=>l.codigo))].sort(),inf={},cel={};
   e.lineas.forEach(l=>{inf[l.codigo]=l;cel[l.orden+'|'+l.codigo]=l});
   const P=e.pallets_det;
-  const th=P.map(p=>`<th>${esc(p.sufijo)}<br><small>${esc(p.serie)}</small></th>`).join('');
+  const th=P.map(p=>`<th>${esc(p.sufijo)}${e.dual?' <b>'+p.tipo+'</b>':''}<br><small>${esc(p.serie)}</small></th>`).join('');
   const body=cs.map(c=>{const l=inf[c];return `<tr><td class="l"><b>${esc(c)}</b>${l.es_rack?' <small>RACKS</small>':''}</td><td class="l">${esc(l.parte)}</td><td>${l.pzas||''}</td>`+
     P.map(p=>{const x=cel[p.orden+'|'+c];return x?`<td class="${x.es_rack?'rk':''}"><b>${x.esperado}</b>${x.kan!=null&&x.kan!==x.esperado?` <span class="warn" title="KAN: ${x.kan}">⚠${x.kan}</span>`:''}</td>`:'<td class="na"></td>'}).join('')+
     `<td><b>${e.lineas.filter(z=>z.codigo===c).reduce((a,z)=>a+n0(z.esperado),0)}</b></td></tr>`}).join('');
   const sel=Object.keys(ETQ).map(k=>`<option value="${k}"${k===e.estatus?' selected':''}>${ETQ[k]}</option>`).join('');
   const q=encodeURIComponent(e.id);
   $('det').innerHTML=`<div class="dh"><span class="rt">${esc(e.ruta)}</span><span class="dk">${esc(e.dock)}</span><span class="st ${e.estatus}">${ETQ[e.estatus]}</span></div>
-    <p class="hint">Salida ${fd(e.salida)} · ${e.pallets} pallets · ${e.cajas} cajas · ${e.racks} racks<br>ID del QR: <b>${esc(e.id)}</b></p>
+    <p class="hint">Salida ${fd(e.salida)} · ${e.pallets} pallets · ${e.cajas} cajas · ${e.racks} racks${e.dual?'<br><b>2 Dock Audit:</b> P (pallets) y R (racks), se vinculan escaneando ambos QR':''}<br>ID del QR: <b>${esc(e.id)}</b></p>
     <div class="mx"><table><thead><tr><th>Código</th><th>N.º de parte</th><th>Pzas</th>${th}<th>Total</th></tr></thead><tbody>${body}</tbody></table></div>
     <div class="acts"><button id="bUno">🖨 Imprimir Dock Audit</button><button id="bPdf" class="sec">⬇ PDF auditado</button></div>
     <details><summary>Exportar CSV y cambiar estatus</summary><div class="acts">
@@ -2576,7 +2579,8 @@ async function abrir(id){
 // ===== Impresión del Dock Audit (blanco, negro y grises; carta horizontal, 1 hoja por embarque) =====
 const n0=v=>Number(v)||0;
 function qrSvg(txt){const q=qrcode(0,'M');q.addData(txt);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true})}
-function hojaHTML(e){
+function hojaHTML(e,tipo){
+  if(e.dual&&(tipo==='P'||tipo==='R'))e=Object.assign({},e,{pallets_det:e.pallets_det.filter(p=>p.tipo===tipo),lineas:e.lineas.filter(l=>l.tipo===tipo)});else tipo='';
   const P=e.pallets_det,L=e.lineas,N=P.length;
   L.forEach(l=>{l.esperado=Number(l.esperado)||0;l.pzas=Number(l.pzas)||0;l.es_rack=Number(l.es_rack)||0});P.forEach(p=>p.skids=Number(p.skids)||0);
   const cs=[...new Set(L.map(l=>l.codigo))].sort(),inf={},cel={};
@@ -2592,13 +2596,13 @@ function hojaHTML(e){
   const fecha=e.salida.slice(8,10)+'/'+e.salida.slice(5,7)+'/'+e.salida.slice(0,4),hh=e.salida.slice(11,16),dsem=['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'][new Date(+e.salida.slice(0,4),+e.salida.slice(5,7)-1,+e.salida.slice(8,10)).getDay()];
   const big=N>12?12:N>8?14:N>6?16:20,sz=N>12?'8pt':N>8?'9pt':'10pt';
   const qty=[totC?`${totC} CAJAS`:'',totR?`${totR} RACKS`:''].filter(Boolean);
-  const bn=`<div class="bn"><div class="k"><span class="l">RUTA</span><span class="b" style="font-size:38pt">${esc(e.ruta)}</span></div>
+  const bn=`<div class="bn${tipo?' dual':''}"><div class="k"><span class="l">RUTA</span><span class="b" style="font-size:38pt">${esc(e.ruta)}</span></div>
    <div class="d"><span class="l">DOCK</span><span class="b" style="font-size:22pt">${esc(e.dock)}</span></div>
    <div class="k"><span class="l" style="color:#d9d9d9;font-size:8pt">SALIDA · ${dsem}</span><span class="b" style="font-size:24pt;margin-bottom:.8mm">${fecha}</span><span class="b" style="font-size:32pt">${hh}</span></div>
    <div class="g"><span class="l">PALLETS</span><span class="b" style="font-size:38pt">${N}</span></div>
    <div class="g"><span class="l">CANTIDAD ESPERADA</span>${qty.map(x=>`<span class="b" style="font-size:${qty.length>1?15:20}pt">${x}</span>`).join('')}</div>
    <div class="g" style="font-size:8pt;font-weight:700"><span>FECHA ____/____/________</span><span style="margin-top:2mm">TURNO ______</span></div>
-   <div class="qr">${qrSvg('DA'+e.id)}</div></div>`;
+   <div class="qr">${qrSvg('DA'+e.id+tipo)}</div>${tipo?`<div class="lt"><div>${tipo}</div></div>`:''}</div>`;
   const colg=`<colgroup>${[...wC,...Array(N).fill(pw),...wT].map(w=>`<col style="width:${w}mm">`).join('')}</colgroup>`;
   const r0=`<tr><th colspan="3" style="font-size:7pt">Serie de la orden (8 dígitos)</th>${grp.map((g,i)=>`<th class="s sep" colspan="${g.n}" style="font-size:14pt;letter-spacing:.6pt">${esc(g.s)}</th>`).join('')}<th colspan="3" style="font-size:7pt">TOTAL ESPERADO</th></tr>`;
   const r1=`<tr><th colspan="3" style="font-size:7pt">Pallet = últimos 2 dígitos de la orden</th>${P.map((p,i)=>`<th class="${sp(i).trim()}" style="font-size:${big}pt">${esc(p.sufijo)}</th>`).join('')}<th colspan="3" style="font-size:7pt">(${totC&&totR?'cajas / racks':totR?'racks':'cajas'})</th></tr>`;
@@ -2615,18 +2619,18 @@ function hojaHTML(e){
     return e1+e2};
   const inc=`<tr style="height:7.5mm"><td class="lb" colspan="3">INCIDENCIA N.º <small>solo si hay diferencia</small></td>${P.map((p,i)=>`<td class="${sp(i).trim()}"></td>`).join('')}<td colspan="3"></td></tr>`;
   const tabla=`<table class="m">${colg}<thead>${r0}${r1}${rm}${r2}${r3}</thead><tbody>${cs.map(rowC).join('')}</tbody></table>`;
-  const nota='Cada columna es un pallet y corresponde a una orden (se identifica por sus últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Una casilla rayada indica que esa parte no va en ese pallet. '+(csR.length?'El fondo gris y la etiqueta RACKS indican que esas partes se envían en racks, no en cajas. ':'')+'Si lo contado no coincide con lo esperado, anótalo en la tabla de incidencias de abajo, indicando el pallet y el código.';
+  const nota=(tipo?`Este embarque tiene dos Dock Audit: P (pallets) y R (racks). Se escanean por separado y, al terminar, se escanean los QR de ambos (en cualquier orden) para vincularlos y cerrar el embarque. Esta hoja es la ${tipo}. `:'')+'Cada columna es un pallet y corresponde a una orden (se identifica por sus últimos 2 dígitos). Los skids del manifiesto (001, 002…) y sus copias A y B pertenecen al mismo pallet. Una casilla rayada indica que esa parte no va en ese pallet. '+(csR.length?'El fondo gris y la etiqueta RACKS indican que esas partes se envían en racks, no en cajas. ':'')+'Si lo contado no coincide con lo esperado, anótalo en la tabla de incidencias de abajo, indicando el pallet y el código.';
   const ctl=`<table><tr><th>CONTROLES DE RUTA</th></tr>
    <tr><td class="h">Pallets físicos contados: ______ de <b>${N}</b> &nbsp; ${totC?`Cajas contadas: ______ de ${totC} &nbsp; `:''}${totR?`Racks contados: ______ de ${totR}`:''}</td></tr>
    <tr><td class="h">Ruta y dock coinciden con la hoja de embarque y el destino del camión ☐ Sí &nbsp; <b>Transporte / placas:</b> ____________</td></tr>
    <tr><td class="h">Condición: ☐ Flejado y sellos firmes &nbsp; ☐ Manifiesto visible por ambos lados &nbsp; ☐ Sin material de otra ruta</td></tr></table>`;
   const com=`<table><tr><th style="width:8mm">N.º</th><th style="width:38mm">Pallet (orden) / código</th><th>Qué se detectó</th><th style="width:48mm">Acción tomada y responsable</th></tr>${[1,2,3].map(n=>`<tr><td class="h" style="text-align:center">${n}</td><td></td><td></td><td></td></tr>`).join('')}</table>`;
   const sg=`<div class="sg"><div>Preparador (nombre y firma)</div><div>Verificador (nombre y firma)</div><div>Líder (nombre y firma)</div></div>`;
-  return `<section class="hoja"><div class="in"><div style="font-size:9pt;font-weight:800;margin-bottom:.8mm">DOCK AUDIT · Preparación de embarque <span style="float:right;font-weight:400;font-size:6.5pt;color:#404040">${esc(e.id)}</span></div>${bn}${tabla}<div class="nota">${nota}</div><div class="low"><div>${ctl}</div><div></div><div>${com}</div></div>${sg}</div></section>`}
+  return `<section class="hoja"><div class="in"><div style="font-size:9pt;font-weight:800;margin-bottom:.8mm">DOCK AUDIT${tipo?' '+tipo+' · '+(tipo==='P'?'PALLETS':'RACKS'):''} · Preparación de embarque <span style="float:right;font-weight:400;font-size:6.5pt;color:#404040">${esc(e.id)}${tipo}</span></div>${bn}${tabla}<div class="nota">${nota}</div><div class="low"><div>${ctl}</div><div></div><div>${com}</div></div>${sg}</div></section>`}
 function ajustar(){document.querySelectorAll('#imp .hoja').forEach(h=>{const i=h.firstElementChild;i.style.transform='';const k=Math.min(1,h.clientHeight/i.scrollHeight);if(k<1){i.style.transform=`scale(${k})`;}})}
 async function imprimir(ids){
   const E=[];for(const id of ids)E.push(await api('embarque',{id}));
-  $('imp').innerHTML=E.map(hojaHTML).join('');
+  $('imp').innerHTML=E.map(e=>e.dual?hojaHTML(e,'P')+hojaHTML(e,'R'):hojaHTML(e)).join('');
   const prev=document.body.style.display;
   // el ajuste necesita medir con la hoja visible: se muestra un instante
   $('imp').style.cssText='display:block;position:absolute;left:-9999px;top:0';ajustar();$('imp').style.cssText='';
