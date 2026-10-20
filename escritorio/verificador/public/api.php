@@ -204,7 +204,7 @@ try {
     case 'embarques_generar': // crea embarques con MAN + ORDER (obligatoria); la KAN solo verifica
       $RK = ['71309-AK020-00', '71309-AK030-00'];
       $g = $db->query('SELECT dock, ruta, salida FROM plan_pallets GROUP BY dock, ruta, salida')->fetchAll(PDO::FETCH_ASSOC);
-      $creados = []; $actualizados = []; $omitidos = []; $rechazados = [];
+      $creados = []; $actualizados = []; $omitidos = []; $rechazados = []; $sinkan = [];
       $existe = $db->prepare('SELECT estatus FROM embarques WHERE id=?');
       foreach ($g as $e) {
         $id = $e['ruta'] . $e['dock'] . str_replace('-', '', substr($e['salida'], 0, 10)) . str_replace(':', '', substr($e['salida'], 11, 5));
@@ -229,6 +229,12 @@ try {
             $lin[] = [$ord, $r['codigo'], $r['parte'], (int)$r['pzas'], in_array($r['parte'], $RK) ? 1 : 0, (int)$r['cajas'], $k === false ? null : (int)$k, $ds]; }
         }
         if ($falta) { $rechazados[] = ['id' => $id, 'motivo' => 'Falta la ORDER de: ' . implode(', ', $falta)]; continue; }
+        // diagnóstico: líneas sin etiqueta KAN y la razón
+        $kO = $db->prepare('SELECT COUNT(*) FROM plan_kanban WHERE dock=? AND orden=?'); $kC = $db->prepare('SELECT COUNT(*) FROM plan_kanban WHERE dock=? AND codigo=?'); $sk = [];
+        foreach ($lin as $l) { if ($l[6] !== null) continue;
+          $kO->execute([$e['dock'], $l[0]]); $kC->execute([$e['dock'], $l[1]]);
+          $sk[] = ['orden' => $l[0], 'codigo' => $l[1], 'parte' => $l[2], 'motivo' => !(int)$kO->fetchColumn() ? 'No hay ninguna etiqueta KAN de esa orden' : (!(int)$kC->fetchColumn() ? 'La KAN no trae ese código en ninguna orden' : 'La KAN trae ese código pero en otra orden')]; }
+        if ($sk) $sinkan[] = ['id' => $id, 'total' => count($lin), 'lineas' => $sk];
         // Una orden con cajas y racks se parte en dos unidades: la de racks lleva el sufijo #R y va en su propio Dock Audit (R)
         $rkc = []; foreach ($lin as $l) $rkc[$l[0]][$l[1]] = $l[4];
         $uni = [];
@@ -270,7 +276,7 @@ try {
         $db->commit();
         if ($est === false) $creados[] = $id; else $actualizados[] = $id;
       }
-      out(200, compact('creados', 'actualizados', 'omitidos', 'rechazados'));
+      out(200, compact('creados', 'actualizados', 'omitidos', 'rechazados', 'sinkan'));
 
     case 'embarques': // lista, opcionalmente filtrada por fecha de salida (YYYY-MM-DD)
       $f = $in['fecha'] ?? '';

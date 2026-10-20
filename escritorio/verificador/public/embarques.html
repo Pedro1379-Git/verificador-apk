@@ -2488,14 +2488,18 @@ $('bLeer').onclick=async()=>{
   const fs=[...$('pdfs').files];if(!fs.length)return $('msg').textContent='Elige uno o más PDF.';
   D={man:[],kan:[],order:{cajas:{},info:{}}};$('bCrear').disabled=true;$('res').innerHTML='';
   try{
-    for(const f of fs){
+    const vistas=new Set(),repet=[];
+    for(const f of fs){let nRep=0,nPag=0;
       const d=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
       for(let i=1;i<=d.numPages;i++){
         const p=await d.getPage(i),tc=await p.getTextContent();
         const it=tc.items.map(t=>({s:t.str.trim(),x:t.transform[4],y:t.transform[5]})).filter(t=>t.s);
-        const m=parseMan(it);if(m)D.man.push(m);else{const k=parseKan(it);if(k)D.kan.push(k);else parseOrder(it,D.order)}
+        nPag++;const sig=it.map(t=>t.s+'@'+Math.round(t.x)+','+Math.round(t.y)).join('|');
+        if(vistas.has(sig)){nRep++;p.cleanup();continue}vistas.add(sig); /* página idéntica a otra ya leída: no se vuelve a contar */
+        const m=parseMan(it);if(m)D.man.push(m);else{const k=parseKan(it);if(k)D.kan.push(k);else{const T={cajas:{},info:{}};if(parseOrder(it,T)){for(const q in T.cajas)D.order.cajas[q]=Math.max(D.order.cajas[q]||0,T.cajas[q]);Object.assign(D.order.info,T.info)}}}
         p.cleanup();if(i%20===0){$('msg').textContent=`${f.name.slice(0,34)}: ${i}/${d.numPages}`;await new Promise(r=>setTimeout(r))}
       }
+      if(nRep)repet.push({n:f.name,todo:nRep===nPag,p:nRep});
     }
     D.man=mergeMan(D.man);D.kan=mergeKan(D.kan);
     const nO=Object.keys(D.order.cajas).length,nM=D.man.length,nK=D.kan.length;
@@ -2504,7 +2508,7 @@ $('bLeer').onclick=async()=>{
     $('cOrd').textContent=`ORDER: ${nO} líneas`;$('cOrd').className='chip'+(nO?' on':'');
     $('cKan').textContent=`KAN: ${nK} partes (verifica cantidades)`;$('cKan').className='chip'+(nK?' on':'');
     if(!nM||!nO){$('msg').innerHTML='<span class="err">Faltan documentos: se necesitan MAN y ORDER.</span>';return}
-    $('msg').innerHTML='<span class="ok">Lectura lista.</span>';$('bCrear').disabled=false;
+    $('msg').innerHTML='<span class="ok">Lectura lista.</span>'+(repet.length?'<br><span class="err">Se ignoraron páginas repetidas (no se duplican cantidades): '+repet.map(x=>esc(x.n.slice(0,40))+(x.todo?' (archivo repetido completo)':' ('+x.p+' pág.)')).join(' · ')+'</span>':'');$('bCrear').disabled=false;
   }catch(e){$('msg').innerHTML='<span class="err">Error: '+esc(e.message)+'</span>'}
 };
 $('bCrear').onclick=async()=>{
@@ -2513,6 +2517,7 @@ $('bCrear').onclick=async()=>{
     await api('plan_importar',D);const r=await api('embarques_generar',{});
     let h=`<p class="ok">Creados: ${r.creados.length} · Actualizados: ${r.actualizados.length}${r.omitidos.length?` · Sin cambios (ya en proceso): ${r.omitidos.length}`:''}</p>`;
     if(r.rechazados.length)h+='<p class="err">No creados:</p><ul>'+r.rechazados.map(x=>`<li><b>${esc(x.id)}</b>: ${esc(x.motivo)}</li>`).join('')+'</ul>';
+    if((r.sinkan||[]).length)h+='<p class="err">Líneas sin etiqueta KAN para comparar:</p><ul>'+r.sinkan.map(x=>`<li><b>${esc(x.id)}</b> (${x.lineas.length} de ${x.total} líneas): `+x.lineas.slice(0,6).map(l=>`${esc(l.codigo)} orden ${esc(l.orden)} — ${esc(l.motivo)}`).join('; ')+(x.lineas.length>6?'…':'')+'</li>').join('')+'</ul>';
     $('res').innerHTML=h;$('msg').textContent='';await listar();
   }catch(e){$('msg').innerHTML='<span class="err">Error: '+esc(e.message)+'</span>'}
   $('bCrear').disabled=false;
