@@ -128,7 +128,7 @@ function parseKan(it){
   const S=it.map(i=>i.s),J=S.join(' '),lab=it.find(i=>i.s==='BOXES of TOTAL'),oh=it.find(i=>i.s==='DELIVERY ORDER NUMBER'),orden=S.find(s=>/^20\d{8}$/.test(s))||(oh?(it.filter(i=>/^[0-9A-Z]{8,10}$/.test(i.s)&&i.y>oh.y&&i.y<oh.y+30&&i.x<130).sort((a,b)=>a.y-b.y)[0]||{}).s:undefined);
   if(!lab||!orden)return null;
   const n=it.filter(i=>/^\d{1,3}$/.test(i.s)&&i.y>lab.y&&i.y<lab.y+20).sort((a,b)=>a.x-b.x);
-  const code=it.filter(i=>/^[A-Z][A-Z0-9]{3}$/.test(i.s)&&i.y>200).sort((a,b)=>b.y-a.y)[0];
+  const dk=it.find(i=>i.s==='DOCK CODE'),code=it.filter(i=>/^[A-Z][A-Z0-9]{3}$/.test(i.s)&&i.y>200&&i.x<300).sort((a,c)=>dk?Math.abs(a.y-dk.y)-Math.abs(c.y-dk.y):c.y-a.y)[0]||it.filter(i=>/^[A-Z][A-Z0-9]{3}$/.test(i.s)&&i.y>200).sort((a,c)=>c.y-a.y)[0]; /* el código de paletizado queda junto a DOCK CODE; la dirección de almacén (STORE ADDRESS, x>300) también tiene 4 caracteres */
   const parte=S.find(s=>/^[0-9A-Z]{5}-[0-9A-Z]{5}-\d{2}$/.test(s));
   if(!code||!parte||n.length<2)return null;
   return {dock:(J.match(/\b(TMM[A-Z]{2}) KANBAN/)||[])[1]||'',orden,codigo:code.s,parte,descripcion:(()=>{const dh=it.find(i=>i.s==='DESCRIPTION');if(!dh)return '';const v=it.filter(i=>i.y>dh.y&&i.y<dh.y+16&&i.x<dh.x+30&&/[A-Z]{3}/.test(i.s)&&i.s!=='DESCRIPTION').sort((a,b)=>a.y-b.y)[0];return v?v.s:''})(),
